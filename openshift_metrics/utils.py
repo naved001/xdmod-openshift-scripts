@@ -94,7 +94,7 @@ def condense_metrics(input_metrics_dict, metrics_to_check):
 
     return condensed_dict
 
-def write_metrics_log(metrics_dict, file_name):
+def write_metrics_log(metrics_dict, file_name, openshift_cluster_name):
     count = 0
     namespace_annotations = get_namespace_annotations()
     print("Writing log to %s" % file_name)
@@ -104,17 +104,18 @@ def write_metrics_log(metrics_dict, file_name):
         namespace = pod_dict['namespace']
         pod_metrics_dict = pod_dict['metrics']
         namespace_annotation_dict = namespace_annotations.get(namespace, {})
-        pi_name = namespace_annotation_dict.get('openshift.io/requester', namespace)
+        cf_pi = namespace_annotation_dict.get('cf_pi', namespace)
+        cf_project_id = namespace_annotation_dict.get('cf_project_id', namespace)
 
         for epoch_time in pod_metrics_dict:
             pod_metric_dict = pod_metrics_dict[epoch_time]
             job_id = count
             job_name = pod
-            cluster_name = 'TBD'
+            cluster_name = openshift_cluster_name
             partition_name = ''
             qos_name = ''
-            account_name = pi_name
-            group_name = pi_name
+            account_name = cf_pi
+            group_name = cf_project_id
             gid_number = ''
             user_name = namespace
             uid_number = ''
