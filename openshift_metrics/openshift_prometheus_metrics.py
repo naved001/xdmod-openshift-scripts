@@ -29,6 +29,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--openshift-url", help="OpenShift Prometheus URL",
                         default=os.getenv('OPENSHIFT_PROMETHEUS_URL'))
+    parser.add_argument("--openshift-cluster-name", help="OpenShift cluster name",
+                        default=os.getenv('OPENSHIFT_CLUSTER_NAME'))
     parser.add_argument("--report-date", help="report date (ex: 2022-03-14)",
                         default=(datetime.datetime.today() - datetime.timedelta(days=1)).strftime('%Y-%m-%d'))
     parser.add_argument("--disable-ssl",
@@ -38,7 +40,10 @@ def main():
     args = parser.parse_args()
     if not args.openshift_url:
         sys.exit('Must specify --openshift-url or set OPENSHIFT_PROMETHEUS_URL in your environment')
+    if not args.openshift_cluster_name:
+        sys.exit('Must specify --openshift-cluster-name or set OPENSHIFT_CLUSTER_NAME in your environment')
     openshift_url = args.openshift_url
+    openshift_cluster_name = args.openshift_cluster_name
     report_date = args.report_date
     disable_ssl = args.disable_ssl
     if args.output_file:
@@ -63,7 +68,7 @@ def main():
     condensed_metrics_dict = utils.condense_metrics(
         metrics_dict, ['cpu', 'allocated_cpu', 'memory'])
 
-    utils.write_metrics_log(condensed_metrics_dict, output_file)
+    utils.write_metrics_log(condensed_metrics_dict, output_file, openshift_cluster_name)
 
 if __name__ == '__main__':
     main()

@@ -361,10 +361,12 @@ class TestWriteMetricsLog(TestCase):
     def test_write_metrics_log(self, mock_gna):
         mock_gna.return_value = {
             'namespace1': {
-                'openshift.io/requester': 'PI1',
+                'cf_pi': 'PI1',
+                'cf_project_id': '123',
             },
             'namespace2': {
-                'openshift.io/requester': 'PI2',
+                'cf_pi': 'PI2',
+                'cf_project_id': '456',
             }
         }
         test_metrics_dict = {
@@ -421,15 +423,15 @@ class TestWriteMetricsLog(TestCase):
             },
         }
 
-        expected_output = ("0|0|TBD|||PI1|PI1||namespace1||1969-12-31T19:00:00|1969-12-31T19:00:00|1969-12-31T19:00:00|1969-12-31T19:01:59|0-0:01:59||COMPLETED|1|10|20|1.0|cpu=20,mem=1.0|cpu=20,mem=1.0|0-0:01:59||pod1\n"
-                           "1|1|TBD|||PI1|PI1||namespace1||1969-12-31T19:02:00|1969-12-31T19:02:00|1969-12-31T19:02:00|1969-12-31T19:02:59|0-0:00:59||COMPLETED|1|20|20|1.0|cpu=20,mem=1.0|cpu=20,mem=1.0|0-0:00:59||pod1\n"
-                           "2|2|TBD|||PI1|PI1||namespace1||1969-12-31T19:00:00|1969-12-31T19:00:00|1969-12-31T19:00:00|1969-12-31T19:00:59|0-0:00:59||COMPLETED|1|20|30|10.0|cpu=30,mem=10.0|cpu=30,mem=10.0|0-0:00:59||pod2\n"
-                           "3|3|TBD|||PI1|PI1||namespace1||1969-12-31T19:01:00|1969-12-31T19:01:00|1969-12-31T19:01:00|1969-12-31T19:01:59|0-0:00:59||COMPLETED|1|25|30|10.0|cpu=30,mem=10.0|cpu=30,mem=10.0|0-0:00:59||pod2\n"
-                           "4|4|TBD|||PI1|PI1||namespace1||1969-12-31T19:02:00|1969-12-31T19:02:00|1969-12-31T19:02:00|1969-12-31T19:02:59|0-0:00:59||COMPLETED|1|20|30|10.0|cpu=30,mem=10.0|cpu=30,mem=10.0|0-0:00:59||pod2\n"
-                           "5|5|TBD|||PI2|PI2||namespace2||1969-12-31T19:00:00|1969-12-31T19:00:00|1969-12-31T19:00:00|1969-12-31T19:02:59|0-0:02:59||COMPLETED|1|45|50|100.0|cpu=50,mem=100.0|cpu=50,mem=100.0|0-0:02:59||pod3\n")
+        expected_output = ("0|0|test_cluster_name|||PI1|123||namespace1||1969-12-31T19:00:00|1969-12-31T19:00:00|1969-12-31T19:00:00|1969-12-31T19:01:59|0-0:01:59||COMPLETED|1|10|20|1.0|cpu=20,mem=1.0|cpu=20,mem=1.0|0-0:01:59||pod1\n"
+                           "1|1|test_cluster_name|||PI1|123||namespace1||1969-12-31T19:02:00|1969-12-31T19:02:00|1969-12-31T19:02:00|1969-12-31T19:02:59|0-0:00:59||COMPLETED|1|20|20|1.0|cpu=20,mem=1.0|cpu=20,mem=1.0|0-0:00:59||pod1\n"
+                           "2|2|test_cluster_name|||PI1|123||namespace1||1969-12-31T19:00:00|1969-12-31T19:00:00|1969-12-31T19:00:00|1969-12-31T19:00:59|0-0:00:59||COMPLETED|1|20|30|10.0|cpu=30,mem=10.0|cpu=30,mem=10.0|0-0:00:59||pod2\n"
+                           "3|3|test_cluster_name|||PI1|123||namespace1||1969-12-31T19:01:00|1969-12-31T19:01:00|1969-12-31T19:01:00|1969-12-31T19:01:59|0-0:00:59||COMPLETED|1|25|30|10.0|cpu=30,mem=10.0|cpu=30,mem=10.0|0-0:00:59||pod2\n"
+                           "4|4|test_cluster_name|||PI1|123||namespace1||1969-12-31T19:02:00|1969-12-31T19:02:00|1969-12-31T19:02:00|1969-12-31T19:02:59|0-0:00:59||COMPLETED|1|20|30|10.0|cpu=30,mem=10.0|cpu=30,mem=10.0|0-0:00:59||pod2\n"
+                           "5|5|test_cluster_name|||PI2|456||namespace2||1969-12-31T19:00:00|1969-12-31T19:00:00|1969-12-31T19:00:00|1969-12-31T19:02:59|0-0:02:59||COMPLETED|1|45|50|100.0|cpu=50,mem=100.0|cpu=50,mem=100.0|0-0:02:59||pod3\n")
 
         tmp_file_name = "%s/test-metrics-%s.log" % (tempfile.gettempdir(), time.time())
-        utils.write_metrics_log(test_metrics_dict, tmp_file_name)
+        utils.write_metrics_log(test_metrics_dict, tmp_file_name, 'test_cluster_name')
         f = open(tmp_file_name, "r")
         self.assertEquals(f.read(), expected_output)
         f.close()
