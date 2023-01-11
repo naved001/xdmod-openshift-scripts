@@ -49,12 +49,12 @@ together if their metrics are the same.
 
 The script queries the following metrics:
 
-* *kube_pod_init_container_resource_requests{unit="core"}*
-   * The number of CPU cores requested by an init container.
-* *kube_pod_init_container_resource_limits{unit="core"}*
-   * The number of CPU cores requested limit by an init container.
-* *kube_pod_init_container_resource_limits{unit="byte"}*
-   * Bytes of memory requested limit by an init container.
+* *kube_pod_resource_request{unit="cores"}*
+   * Cores requested by workloads on the cluster, broken down by pod. This shows the core usage the scheduler and kubelet expect per pod.
+* *kube_pod_resource_limit{unit="cores"}*
+   * Cores limit for workloads on the cluster, broken down by pod. This shows the core usage the scheduler and kubelet expect per pod.
+* *kube_pod_resource_limit{unit="bytes"}*
+   * Memory (in bytes) limit for workloads on the cluster, broken down by pod. This shows the memory usage the scheduler and kubelet expect per pod.
 
 The script also retrieves further information through annotations.
 
@@ -88,9 +88,9 @@ as follows:
 | exit_code      | **blank**                                                |
 | state          | **RUNNING**                                              |
 | nnodes         | **1**                                                    |
-| ncpus          | *kube_pod_init_container_resource_requests{unit="core"}* |
-| req_cpus       | *kube_pod_init_container_resource_limits{unit="core"}*   |
-| req_mem        | *kube_pod_init_container_resource_limits{unit="byte"}*   |
+| ncpus          | *kube_pod_resource_request{unit="cores"}*                |
+| req_cpus       | *kube_pod_resource_limit{unit="cores"}*                  |
+| req_mem        | *kube_pod_resource_limit{unit="bytes"}*                  |
 | req_tres       | **cpu=<req_cpus>,mem=<req_mem>**                         |
 | alloc_tres     | *set to req_tres*                                        |
 | node_list      | **blank**                                                |

@@ -21,9 +21,9 @@ import openshift
 import utils
 
 
-CPU_METRIC = 'kube_pod_init_container_resource_requests{unit="core"}'
-ALLOCATED_CPU_METRIC = 'kube_pod_init_container_resource_limits{unit="core"}'
-ALLOCATED_MEMORY_METRIC = 'kube_pod_init_container_resource_limits{unit="byte"}'
+CPU_METRIC = 'kube_pod_resource_request{unit="cores"}'
+ALLOCATED_CPU_METRIC = 'kube_pod_resource_limit{unit="cores"}'
+ALLOCATED_MEMORY_METRIC = 'kube_pod_resource_limit{unit="bytes"}'
 
 def main():
     parser = argparse.ArgumentParser()
