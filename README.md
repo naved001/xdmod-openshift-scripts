@@ -74,8 +74,8 @@ as follows:
 | cluster_name   | *openshift cluster annotation*                           |
 | partition_name | **blank**                                                |
 | qos_name       | **blank**                                                |
-| account_name   | *PI annotation*                                          |
-| group_name     | *PI annotation*                                          |
+| account_name   | *cf_pi annotation*                                       |
+| group_name     | *cf_pi annotation*                                       |
 | gid_number     | **blank**                                                |
 | user_name      | *openshift namespace*                                    |
 | uid_number     | **blank**                                                |
