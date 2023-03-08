@@ -74,10 +74,10 @@ as follows:
 | cluster_name   | *openshift cluster annotation*                           |
 | partition_name | **blank**                                                |
 | qos_name       | **blank**                                                |
-| account_name   | *cf_pi annotation*                                       |
-| group_name     | *cf_pi annotation*                                       |
+| account_name   | *openshift namespace*                                    |
+| group_name     | *openshift namespace*                                    |
 | gid_number     | **blank**                                                |
-| user_name      | *openshift namespace*                                    |
+| user_name      | **blank***                                               |
 | uid_number     | **blank**                                                |
 | start_time     | *beginning of sample time*                               |
 | end_time       | *end of sample time*                                     |

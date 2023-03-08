@@ -114,10 +114,10 @@ def write_metrics_log(metrics_dict, file_name, openshift_cluster_name):
             cluster_name = openshift_cluster_name
             partition_name = ''
             qos_name = ''
-            account_name = cf_pi
-            group_name = cf_pi
+            account_name = namespace
+            group_name = namespace
             gid_number = ''
-            user_name = namespace
+            user_name = ''
             uid_number = ''
             start_time = datetime.datetime.fromtimestamp(float(epoch_time)).strftime("%Y-%m-%dT%H:%M:%S")
             end_time = datetime.datetime.fromtimestamp(float(epoch_time + pod_metric_dict['duration'])).strftime("%Y-%m-%dT%H:%M:%S")
