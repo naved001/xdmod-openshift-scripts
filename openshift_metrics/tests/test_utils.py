@@ -423,12 +423,12 @@ class TestWriteMetricsLog(TestCase):
             },
         }
 
-        expected_output = ("0|0|test_cluster_name|||namespace1|namespace1||||1969-12-31T19:00:00|1969-12-31T19:00:00|1969-12-31T19:00:00|1969-12-31T19:01:59|0-0:01:59||COMPLETED|1|10|20|1.0|cpu=20,mem=1.0|cpu=20,mem=1.0|0-0:01:59||pod1\n"
-                           "1|1|test_cluster_name|||namespace1|namespace1||||1969-12-31T19:02:00|1969-12-31T19:02:00|1969-12-31T19:02:00|1969-12-31T19:02:59|0-0:00:59||COMPLETED|1|20|20|1.0|cpu=20,mem=1.0|cpu=20,mem=1.0|0-0:00:59||pod1\n"
-                           "2|2|test_cluster_name|||namespace1|namespace1||||1969-12-31T19:00:00|1969-12-31T19:00:00|1969-12-31T19:00:00|1969-12-31T19:00:59|0-0:00:59||COMPLETED|1|20|30|10.0|cpu=30,mem=10.0|cpu=30,mem=10.0|0-0:00:59||pod2\n"
-                           "3|3|test_cluster_name|||namespace1|namespace1||||1969-12-31T19:01:00|1969-12-31T19:01:00|1969-12-31T19:01:00|1969-12-31T19:01:59|0-0:00:59||COMPLETED|1|25|30|10.0|cpu=30,mem=10.0|cpu=30,mem=10.0|0-0:00:59||pod2\n"
-                           "4|4|test_cluster_name|||namespace1|namespace1||||1969-12-31T19:02:00|1969-12-31T19:02:00|1969-12-31T19:02:00|1969-12-31T19:02:59|0-0:00:59||COMPLETED|1|20|30|10.0|cpu=30,mem=10.0|cpu=30,mem=10.0|0-0:00:59||pod2\n"
-                           "5|5|test_cluster_name|||namespace2|namespace2||||1969-12-31T19:00:00|1969-12-31T19:00:00|1969-12-31T19:00:00|1969-12-31T19:02:59|0-0:02:59||COMPLETED|1|45|50|100.0|cpu=50,mem=100.0|cpu=50,mem=100.0|0-0:02:59||pod3\n")
+        expected_output = ("0|0|test_cluster_name|||namespace1|PI1|123|PI1|123|1969-12-31T19:00:00|1969-12-31T19:00:00|1969-12-31T19:00:00|1969-12-31T19:01:59|0-0:01:59||COMPLETED|1|10|20|1.0|cpu=20,mem=1.0|cpu=20,mem=1.0|0-0:01:59||pod1\n"
+                           "1|1|test_cluster_name|||namespace1|PI1|123|PI1|123|1969-12-31T19:02:00|1969-12-31T19:02:00|1969-12-31T19:02:00|1969-12-31T19:02:59|0-0:00:59||COMPLETED|1|20|20|1.0|cpu=20,mem=1.0|cpu=20,mem=1.0|0-0:00:59||pod1\n"
+                           "2|2|test_cluster_name|||namespace1|PI1|123|PI1|123|1969-12-31T19:00:00|1969-12-31T19:00:00|1969-12-31T19:00:00|1969-12-31T19:00:59|0-0:00:59||COMPLETED|1|20|30|10.0|cpu=30,mem=10.0|cpu=30,mem=10.0|0-0:00:59||pod2\n"
+                           "3|3|test_cluster_name|||namespace1|PI1|123|PI1|123|1969-12-31T19:01:00|1969-12-31T19:01:00|1969-12-31T19:01:00|1969-12-31T19:01:59|0-0:00:59||COMPLETED|1|25|30|10.0|cpu=30,mem=10.0|cpu=30,mem=10.0|0-0:00:59||pod2\n"
+                           "4|4|test_cluster_name|||namespace1|PI1|123|PI1|123|1969-12-31T19:02:00|1969-12-31T19:02:00|1969-12-31T19:02:00|1969-12-31T19:02:59|0-0:00:59||COMPLETED|1|20|30|10.0|cpu=30,mem=10.0|cpu=30,mem=10.0|0-0:00:59||pod2\n"
+                           "5|5|test_cluster_name|||namespace2|PI2|456|PI2|456|1969-12-31T19:00:00|1969-12-31T19:00:00|1969-12-31T19:00:00|1969-12-31T19:02:59|0-0:02:59||COMPLETED|1|45|50|100.0|cpu=50,mem=100.0|cpu=50,mem=100.0|0-0:02:59||pod3\n")
 
         tmp_file_name = "%s/test-metrics-%s.log" % (tempfile.gettempdir(), time.time())
         utils.write_metrics_log(test_metrics_dict, tmp_file_name, 'test_cluster_name')
