@@ -105,7 +105,7 @@ def write_metrics_log(metrics_dict, file_name, openshift_cluster_name):
         pod_metrics_dict = pod_dict['metrics']
         namespace_annotation_dict = namespace_annotations.get(namespace, {})
         cf_pi = namespace_annotation_dict.get('cf_pi', namespace)
-        cf_project_id = namespace_annotation_dict.get('cf_project_id', namespace)
+        cf_project_id = namespace_annotation_dict.get('cf_project_id', 1)
 
         for epoch_time in pod_metrics_dict:
             pod_metric_dict = pod_metrics_dict[epoch_time]
@@ -115,10 +115,10 @@ def write_metrics_log(metrics_dict, file_name, openshift_cluster_name):
             partition_name = ''
             qos_name = ''
             account_name = namespace
-            group_name = namespace
-            gid_number = ''
-            user_name = ''
-            uid_number = ''
+            group_name = cf_pi
+            gid_number = cf_project_id
+            user_name = cf_pi
+            uid_number = cf_project_id
             start_time = datetime.datetime.fromtimestamp(float(epoch_time)).strftime("%Y-%m-%dT%H:%M:%S")
             end_time = datetime.datetime.fromtimestamp(float(epoch_time + pod_metric_dict['duration'])).strftime("%Y-%m-%dT%H:%M:%S")
             submission_time = start_time
@@ -132,8 +132,8 @@ def write_metrics_log(metrics_dict, file_name, openshift_cluster_name):
             req_tres = 'cpu=%s,mem=%s' % (req_cpu, req_mem)
             alloc_tres = req_tres
             info_list = [
-                str(job_id), str(job_id), cluster_name, partition_name, qos_name, account_name, group_name, '', user_name, '',
-                submission_time, eligible_time, start_time, end_time, duration, '', status, str(node_count),
+                str(job_id), str(job_id), cluster_name, partition_name, qos_name, account_name, group_name, str(gid_number),
+                user_name, str(uid_number), submission_time, eligible_time, start_time, end_time, duration, '', status, str(node_count),
                 str(cpu), str(req_cpu), str(req_mem), req_tres, alloc_tres,
                 duration, '', job_name
             ]

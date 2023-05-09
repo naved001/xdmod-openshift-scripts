@@ -75,16 +75,16 @@ as follows:
 | partition_name | **blank**                                                |
 | qos_name       | **blank**                                                |
 | account_name   | *openshift namespace*                                    |
-| group_name     | *openshift namespace*                                    |
-| gid_number     | **blank**                                                |
-| user_name      | **blank***                                               |
-| uid_number     | **blank**                                                |
+| group_name     | *cf_pi annotation*                                       |
+| gid_number     | *cf_project_id annotation*                               | 
+| user_name      | *cf_pi annotation*                                       |
+| uid_number     | *cf_project_id annotation*                               |
 | start_time     | *beginning of sample time*                               |
 | end_time       | *end of sample time*                                     |
 | submit_time    | *set to start_time*                                      |
 | eligible_time  | *set to start_time*                                      |
 | elapsed        | *end_time - start_time*                                  |
-| timelimit      | * set to elapsed*                                        |
+| timelimit      | *set to elapsed*                                         |
 | exit_code      | **blank**                                                |
 | state          | **RUNNING**                                              |
 | nnodes         | **1**                                                    |
