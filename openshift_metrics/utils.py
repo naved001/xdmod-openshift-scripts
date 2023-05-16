@@ -99,6 +99,36 @@ def write_metrics_log(metrics_dict, file_name, openshift_cluster_name):
     namespace_annotations = get_namespace_annotations()
     print("Writing log to %s" % file_name)
     f = open(file_name, "w")
+    headers = [
+                "Job ID",
+                "Job ID (duplicate)",
+                "Cluster Name",
+                "Partition Name",
+                "QoS Name",
+                "Account Name",
+                "Group Name",
+                "GID Number",
+                "User Name",
+                "UID Number",
+                "Submission Time",
+                "Eligible Time",
+                "Start Time",
+                "End Time",
+                "Duration",
+                "Unknown",
+                "Status",
+                "Node Count",
+                "CPU",
+                "Required CPU",
+                "Required Memory",
+                "Required TRES",
+                "Allocated TRES",
+                "Duration (duplicate)",
+                "Unknown",
+                "Job Name"
+            ]
+    f.write('|'.join(headers))
+    f.write('\n')
     for pod in metrics_dict:
         pod_dict = metrics_dict[pod]
         namespace = pod_dict['namespace']
