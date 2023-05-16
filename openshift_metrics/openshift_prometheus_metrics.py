@@ -32,7 +32,7 @@ def main():
     parser.add_argument("--openshift-cluster-name", help="OpenShift cluster name",
                         default=os.getenv('OPENSHIFT_CLUSTER_NAME'))
     parser.add_argument("--report-date", help="report date (ex: 2022-03-14)",
-                        default=(datetime.datetime.today() - datetime.timedelta(days=1)).strftime('%Y-%m-%d'))
+                        default=(datetime.datetime.today() - datetime.timedelta(days=15)).strftime('%Y-%m-%d'))
     parser.add_argument("--disable-ssl",
                         default=os.getenv('OPENSHIFT_DISABLE_SSL', False))
     parser.add_argument("--output-file")
@@ -54,7 +54,6 @@ def main():
     print("Generating report for %s in %s" % (report_date, output_file))
 
     token = openshift.get_auth_token()
-
     cpu_metrics = utils.query_metric(openshift_url, token, CPU_METRIC, report_date, disable_ssl)
     allocated_cpu_metrics = utils.query_metric(
         openshift_url, token, ALLOCATED_CPU_METRIC, report_date, disable_ssl)
