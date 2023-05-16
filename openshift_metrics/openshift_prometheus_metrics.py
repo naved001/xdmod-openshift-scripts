@@ -24,6 +24,8 @@ import utils
 CPU_METRIC = 'kube_pod_resource_request{unit="cores"}'
 ALLOCATED_CPU_METRIC = 'kube_pod_resource_limit{unit="cores"}'
 ALLOCATED_MEMORY_METRIC = 'kube_pod_resource_limit{unit="bytes"}'
+PV_USAGE = 'kube_persistentvolume_capacity_bytes'
+PVC_USAGE = 'kube_persistentvolumeclaim_resource_requests_storage_bytes'
 
 def main():
     parser = argparse.ArgumentParser()
@@ -32,7 +34,7 @@ def main():
     parser.add_argument("--openshift-cluster-name", help="OpenShift cluster name",
                         default=os.getenv('OPENSHIFT_CLUSTER_NAME'))
     parser.add_argument("--report-date", help="report date (ex: 2022-03-14)",
-                        default=(datetime.datetime.today() - datetime.timedelta(days=15)).strftime('%Y-%m-%d'))
+                        default=(datetime.datetime.today() - datetime.timedelta(days=1)).strftime('%Y-%m-%d'))
     parser.add_argument("--disable-ssl",
                         default=os.getenv('OPENSHIFT_DISABLE_SSL', False))
     parser.add_argument("--output-file")
@@ -54,6 +56,8 @@ def main():
     print("Generating report for %s in %s" % (report_date, output_file))
 
     token = openshift.get_auth_token()
+    pv_metrics = utils.query_metric(openshift_url, token, PV_USAGE, report_date, disable_ssl)
+    pvc_metrics = utils.query_metric(openshift_url, token, PVC_USAGE, report_date, disable_ssl)
     cpu_metrics = utils.query_metric(openshift_url, token, CPU_METRIC, report_date, disable_ssl)
     allocated_cpu_metrics = utils.query_metric(
         openshift_url, token, ALLOCATED_CPU_METRIC, report_date, disable_ssl)
@@ -61,13 +65,18 @@ def main():
         openshift_url, token, ALLOCATED_MEMORY_METRIC, report_date, disable_ssl)
 
     metrics_dict = {}
+    storage_dict = {}
+    utils.merge_metrics_storage('pvc', pvc_metrics, storage_dict)
+    utils.merge_metrics_storage('pv', pv_metrics, storage_dict)
     utils.merge_metrics('cpu', cpu_metrics, metrics_dict)
     utils.merge_metrics('allocated_cpu', allocated_cpu_metrics, metrics_dict)
     utils.merge_metrics('allocated_memory', allocated_memory_metrics, metrics_dict)
     condensed_metrics_dict = utils.condense_metrics(
         metrics_dict, ['cpu', 'allocated_cpu', 'memory'])
 
-    utils.write_metrics_log(condensed_metrics_dict, output_file, openshift_cluster_name)
+    condensed_storage_metrics_dict = utils.condense_storage_metrics(storage_dict, ['pvc', 'pv'])
 
+    utils.write_metrics_log(condensed_metrics_dict, output_file, openshift_cluster_name)
+    utils.write_storage_metrics_log(condensed_storage_metrics_dict, 'storage-'+output_file, openshift_cluster_name)
 if __name__ == '__main__':
     main()

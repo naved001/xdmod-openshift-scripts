@@ -63,6 +63,19 @@ def merge_metrics(metric_name, metric_list, output_dict):
             output_dict[pod]['metrics'][epoch_time][metric_name] = value[1]
     return output_dict
 
+def merge_metrics_storage(metric_name, metric_list, output_dict):
+    for metric in metric_list:
+        volume = metric['metric'].get('persistentvolume', metric['metric'].get('persistentvolumeclaim'))
+        if volume not in output_dict:
+            output_dict[volume] = {'namespace': metric['metric']['namespace'],
+                                'metrics': {}}
+        for value in metric['values']:
+            epoch_time = value[0]
+            if epoch_time not in output_dict[volume]['metrics']:
+                output_dict[volume]['metrics'][epoch_time] = {}
+            output_dict[volume]['metrics'][epoch_time][metric_name] = value[1]
+    return output_dict
+
 def condense_metrics(input_metrics_dict, metrics_to_check):
     condensed_dict = {}
     for pod, pod_dict in input_metrics_dict.items():
@@ -91,6 +104,37 @@ def condense_metrics(input_metrics_dict, metrics_to_check):
         new_pod_dict = pod_dict.copy()
         new_pod_dict['metrics'] = new_metrics_dict
         condensed_dict[pod] = new_pod_dict
+
+    return condensed_dict
+
+def condense_storage_metrics(input_metrics_dict, metrics_to_check):
+    condensed_dict = {}
+    for volume, volume_dict in input_metrics_dict.items():
+        metrics_dict = volume_dict['metrics']
+        new_metrics_dict = {}
+        epoch_times_list = sorted(metrics_dict.keys())
+
+        start_epoch_time = epoch_times_list[0]
+        start_metric_dict = metrics_dict[start_epoch_time].copy()
+        for epoch_time in epoch_times_list:
+            same_metrics = True
+            for metric in metrics_to_check:
+                if metrics_dict[start_epoch_time].get(metric, 0) != metrics_dict[epoch_time].get(metric, 0):
+                    same_metrics = False
+
+            if not same_metrics:
+                duration = epoch_time - start_epoch_time - 1
+                start_metric_dict['duration'] = duration
+                new_metrics_dict[start_epoch_time] = start_metric_dict
+                start_epoch_time = epoch_time
+                start_metric_dict = metrics_dict[start_epoch_time].copy()
+        duration = epoch_time - start_epoch_time + 59
+        start_metric_dict['duration'] = duration
+        new_metrics_dict[start_epoch_time] = start_metric_dict
+
+        new_volume_dict = volume_dict.copy()
+        new_volume_dict['metrics'] = new_metrics_dict
+        condensed_dict[volume] = new_volume_dict
 
     return condensed_dict
 
@@ -141,6 +185,56 @@ def write_metrics_log(metrics_dict, file_name, openshift_cluster_name):
                 str(job_id), cluster_name, account_name, group_name, str(gid_number),
                 start_time, end_time, duration, str(cpu), str(req_cpu), str(req_mem), pod_name
                 ]
+            f.write('|'.join(info_list))
+            f.write('\n')
+            count = count + 1
+    f.close()
+
+
+def write_storage_metrics_log(metrics_dict, file_name, openshift_cluster_name):
+    count = 0
+    namespace_annotations = get_namespace_annotations()
+    print("Writing log to %s" % file_name)
+    f = open(file_name, "w")
+    headers = [
+                "Job ID",
+                "Cluster Name",
+                "Account Name",
+                "Group/Coldfront_PI Name",
+                "Group ID Number",
+                "Start Time",
+                "End Time",
+                "Duration",
+                "PV (GiB)",
+                "PVC (GiB)",
+                "PV Name"
+            ]
+    f.write('|'.join(headers))
+    f.write('\n')
+    for volume in metrics_dict:
+        volume_dict = metrics_dict[volume]
+        namespace = volume_dict['namespace']
+        volume_metrics_dict = volume_dict['metrics']
+        namespace_annotation_dict = namespace_annotations.get(namespace, {})
+        cf_pi = namespace_annotation_dict.get('cf_pi', namespace)
+        cf_project_id = namespace_annotation_dict.get('cf_project_id', 1)
+
+        for epoch_time in volume_metrics_dict:
+            volume_metric_dict = volume_metrics_dict[epoch_time]
+            pv_name = volume
+            job_id = count
+            cluster_name = openshift_cluster_name
+            account_name = namespace
+            group_name = cf_pi
+            gid_number = cf_project_id
+            start_time = datetime.datetime.fromtimestamp(float(epoch_time)).strftime("%Y-%m-%dT%H:%M:%S")
+            end_time = datetime.datetime.fromtimestamp(float(epoch_time + volume_metric_dict['duration'])).strftime("%Y-%m-%dT%H:%M:%S")
+            duration = '0-%s' % datetime.timedelta(seconds=volume_metric_dict['duration'])
+            pv = float(volume_metric_dict.get('pv', 0)) / 2**30
+            pvc = float(volume_metric_dict.get('pvc', 0)) / 2**30
+            info_list = [
+                str(job_id), cluster_name, account_name, group_name, str(gid_number),
+                start_time, end_time, duration, str(pv), str(pvc), pv_name]
             f.write('|'.join(info_list))
             f.write('\n')
             count = count + 1
