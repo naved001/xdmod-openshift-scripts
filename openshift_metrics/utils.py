@@ -101,31 +101,17 @@ def write_metrics_log(metrics_dict, file_name, openshift_cluster_name):
     f = open(file_name, "w")
     headers = [
                 "Job ID",
-                "Job ID (duplicate)",
                 "Cluster Name",
-                "Partition Name",
-                "QoS Name",
                 "Account Name",
-                "Group Name",
-                "GID Number",
-                "User Name",
-                "UID Number",
-                "Submission Time",
-                "Eligible Time",
+                "Group/Coldfront_PI Name",
+                "Group ID Number",
                 "Start Time",
                 "End Time",
                 "Duration",
-                "Unknown",
-                "Status",
-                "Node Count",
                 "CPU",
-                "Required CPU",
-                "Required Memory",
-                "Required TRES",
-                "Allocated TRES",
-                "Duration (duplicate)",
-                "Unknown",
-                "Job Name"
+                "CPU Requests",
+                "Memory Requests (MiB)",
+                "Pod Name"
             ]
     f.write('|'.join(headers))
     f.write('\n')
@@ -140,33 +126,21 @@ def write_metrics_log(metrics_dict, file_name, openshift_cluster_name):
         for epoch_time in pod_metrics_dict:
             pod_metric_dict = pod_metrics_dict[epoch_time]
             job_id = count
-            job_name = pod
+            pod_name = pod
             cluster_name = openshift_cluster_name
-            partition_name = ''
-            qos_name = ''
             account_name = namespace
             group_name = cf_pi
             gid_number = cf_project_id
-            user_name = cf_pi
-            uid_number = cf_project_id
             start_time = datetime.datetime.fromtimestamp(float(epoch_time)).strftime("%Y-%m-%dT%H:%M:%S")
             end_time = datetime.datetime.fromtimestamp(float(epoch_time + pod_metric_dict['duration'])).strftime("%Y-%m-%dT%H:%M:%S")
-            submission_time = start_time
-            eligible_time = start_time
             duration = '0-%s' % datetime.timedelta(seconds=pod_metric_dict['duration'])
-            status = 'COMPLETED'
-            node_count = 1
             cpu = pod_metric_dict.get('cpu', 0)
             req_cpu = pod_metric_dict.get('allocated_cpu', 0)
-            req_mem = float(pod_metric_dict.get('allocated_memory', 0)) / 1048576
-            req_tres = 'cpu=%s,mem=%s' % (req_cpu, req_mem)
-            alloc_tres = req_tres
+            req_mem = float(pod_metric_dict.get('allocated_memory', 0)) / 2**20
             info_list = [
-                str(job_id), str(job_id), cluster_name, partition_name, qos_name, account_name, group_name, str(gid_number),
-                user_name, str(uid_number), submission_time, eligible_time, start_time, end_time, duration, '', status, str(node_count),
-                str(cpu), str(req_cpu), str(req_mem), req_tres, alloc_tres,
-                duration, '', job_name
-            ]
+                str(job_id), cluster_name, account_name, group_name, str(gid_number),
+                start_time, end_time, duration, str(cpu), str(req_cpu), str(req_mem), pod_name
+                ]
             f.write('|'.join(info_list))
             f.write('\n')
             count = count + 1
