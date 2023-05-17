@@ -72,8 +72,9 @@ def main():
         metrics_dict, ['cpu', 'allocated_cpu', 'memory'])
 
     condensed_storage_metrics_dict = utils.condense_storage_metrics(storage_dict, ['pvc'])
+    utils.write_metrics_by_namespace(condensed_metrics_dict, 'namespace-' + output_file)
 
-    utils.write_metrics_log(condensed_metrics_dict, output_file, openshift_cluster_name)
-    utils.write_storage_metrics_log(condensed_storage_metrics_dict, 'storage-'+output_file, openshift_cluster_name)
+    # utils.write_metrics_log(condensed_metrics_dict, output_file, openshift_cluster_name)
+    # utils.write_storage_metrics_log(condensed_storage_metrics_dict, 'storage-'+output_file, openshift_cluster_name)
 if __name__ == '__main__':
     main()

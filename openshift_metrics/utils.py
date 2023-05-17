@@ -138,6 +138,68 @@ def condense_storage_metrics(input_metrics_dict, metrics_to_check):
 
     return condensed_dict
 
+def write_metrics_by_namespace(condensed_metrics_dict, file_name):
+    count = 0
+    metrics_by_namespace = {}
+    namespace_annotations = get_namespace_annotations()
+    print("Writing log to %s" % file_name)
+    f = open(file_name, "w")
+    headers = [
+                "Namespace",
+                "Group/Coldfront_PI Name",
+                "CPU Total",
+                "CPU Hours",
+                "Requests CPU Total",
+                "Requests CPU Hours",
+                "Memory Total (MiB)",
+                "Memory Hours",
+            ]
+    f.write('|'.join(headers))
+    f.write('\n')
+
+    for pod in condensed_metrics_dict:
+        pod_dict = condensed_metrics_dict[pod]
+        namespace = pod_dict['namespace']
+        pod_metrics_dict = pod_dict['metrics']
+        namespace_annotation_dict = namespace_annotations.get(namespace, {})
+        cf_pi = namespace_annotation_dict.get('cf_pi', namespace)
+        cf_project_id = namespace_annotation_dict.get('cf_project_id', 1)
+
+        if namespace not in metrics_by_namespace:
+            metrics_by_namespace[namespace] = {'pi': cf_pi,
+                                                'cpu': 0,
+                                                'req_cpu': 0,
+                                                'req_mem': 0,
+                                                'cpu_hours': 0,
+                                                'req_cpu_hours': 0,
+                                                'req_mem_hours': 0,
+                                                'cf_pi': cf_pi,
+                                            }
+
+        for epoch_time in pod_metrics_dict:
+            pod_metric_dict = pod_metrics_dict[epoch_time]
+            duration_in_hours = float(pod_metric_dict['duration']) / 3600
+            cpu = float(pod_metric_dict.get('cpu', 0))
+            req_cpu = float(pod_metric_dict.get('allocated_cpu', 0))
+            req_mem = float(pod_metric_dict.get('allocated_memory', 0)) / 2**20
+            metrics_by_namespace[namespace]['cpu'] += cpu
+            metrics_by_namespace[namespace]['req_cpu'] += req_cpu
+            metrics_by_namespace[namespace]['req_mem'] += req_mem
+            metrics_by_namespace[namespace]['cpu_hours'] += round(cpu*duration_in_hours, 2)
+            metrics_by_namespace[namespace]['req_cpu_hours'] += round(req_cpu*duration_in_hours, 2)
+            metrics_by_namespace[namespace]['req_mem_hours'] += round(req_mem*duration_in_hours, 2)
+
+    for namespace in metrics_by_namespace:
+        metrics = metrics_by_namespace[namespace]
+        row = [ namespace, metrics['pi'],
+                str(metrics['cpu']), str(metrics['cpu_hours']),
+                str(metrics['req_cpu']), str(metrics['req_cpu_hours']),
+                str(metrics['req_mem']), str(metrics['req_mem_hours']),
+            ]
+        f.write('|'.join(row))
+        f.write('\n')
+    f.close()
+
 def write_metrics_log(metrics_dict, file_name, openshift_cluster_name):
     count = 0
     namespace_annotations = get_namespace_annotations()
@@ -189,7 +251,6 @@ def write_metrics_log(metrics_dict, file_name, openshift_cluster_name):
             f.write('\n')
             count = count + 1
     f.close()
-
 
 def write_storage_metrics_log(metrics_dict, file_name, openshift_cluster_name):
     count = 0
