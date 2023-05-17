@@ -65,7 +65,7 @@ def merge_metrics(metric_name, metric_list, output_dict):
 
 def merge_metrics_storage(metric_name, metric_list, output_dict):
     for metric in metric_list:
-        volume = metric['metric'].get('persistentvolume', metric['metric'].get('persistentvolumeclaim'))
+        volume = metric['metric']['persistentvolumeclaim']
         if volume not in output_dict:
             output_dict[volume] = {'namespace': metric['metric']['namespace'],
                                 'metrics': {}}
@@ -205,7 +205,6 @@ def write_storage_metrics_log(metrics_dict, file_name, openshift_cluster_name):
                 "Start Time",
                 "End Time",
                 "Duration",
-                "PV (GiB)",
                 "PVC (GiB)",
                 "PV Name"
             ]
@@ -221,7 +220,7 @@ def write_storage_metrics_log(metrics_dict, file_name, openshift_cluster_name):
 
         for epoch_time in volume_metrics_dict:
             volume_metric_dict = volume_metrics_dict[epoch_time]
-            pv_name = volume
+            pvc_name = volume
             job_id = count
             cluster_name = openshift_cluster_name
             account_name = namespace
@@ -230,11 +229,10 @@ def write_storage_metrics_log(metrics_dict, file_name, openshift_cluster_name):
             start_time = datetime.datetime.fromtimestamp(float(epoch_time)).strftime("%Y-%m-%dT%H:%M:%S")
             end_time = datetime.datetime.fromtimestamp(float(epoch_time + volume_metric_dict['duration'])).strftime("%Y-%m-%dT%H:%M:%S")
             duration = '0-%s' % datetime.timedelta(seconds=volume_metric_dict['duration'])
-            pv = float(volume_metric_dict.get('pv', 0)) / 2**30
             pvc = float(volume_metric_dict.get('pvc', 0)) / 2**30
             info_list = [
                 str(job_id), cluster_name, account_name, group_name, str(gid_number),
-                start_time, end_time, duration, str(pv), str(pvc), pv_name]
+                start_time, end_time, duration, str(pvc), pvc_name]
             f.write('|'.join(info_list))
             f.write('\n')
             count = count + 1

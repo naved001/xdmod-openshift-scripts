@@ -24,7 +24,6 @@ import utils
 CPU_METRIC = 'kube_pod_resource_request{unit="cores"}'
 ALLOCATED_CPU_METRIC = 'kube_pod_resource_limit{unit="cores"}'
 ALLOCATED_MEMORY_METRIC = 'kube_pod_resource_limit{unit="bytes"}'
-PV_USAGE = 'kube_persistentvolume_capacity_bytes'
 PVC_USAGE = 'kube_persistentvolumeclaim_resource_requests_storage_bytes'
 
 def main():
@@ -56,7 +55,6 @@ def main():
     print("Generating report for %s in %s" % (report_date, output_file))
 
     token = openshift.get_auth_token()
-    pv_metrics = utils.query_metric(openshift_url, token, PV_USAGE, report_date, disable_ssl)
     pvc_metrics = utils.query_metric(openshift_url, token, PVC_USAGE, report_date, disable_ssl)
     cpu_metrics = utils.query_metric(openshift_url, token, CPU_METRIC, report_date, disable_ssl)
     allocated_cpu_metrics = utils.query_metric(
@@ -67,14 +65,13 @@ def main():
     metrics_dict = {}
     storage_dict = {}
     utils.merge_metrics_storage('pvc', pvc_metrics, storage_dict)
-    utils.merge_metrics_storage('pv', pv_metrics, storage_dict)
     utils.merge_metrics('cpu', cpu_metrics, metrics_dict)
     utils.merge_metrics('allocated_cpu', allocated_cpu_metrics, metrics_dict)
     utils.merge_metrics('allocated_memory', allocated_memory_metrics, metrics_dict)
     condensed_metrics_dict = utils.condense_metrics(
         metrics_dict, ['cpu', 'allocated_cpu', 'memory'])
 
-    condensed_storage_metrics_dict = utils.condense_storage_metrics(storage_dict, ['pvc', 'pv'])
+    condensed_storage_metrics_dict = utils.condense_storage_metrics(storage_dict, ['pvc'])
 
     utils.write_metrics_log(condensed_metrics_dict, output_file, openshift_cluster_name)
     utils.write_storage_metrics_log(condensed_storage_metrics_dict, 'storage-'+output_file, openshift_cluster_name)
