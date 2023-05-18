@@ -156,7 +156,6 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name):
             ]
     f.write('|'.join(headers))
     f.write('\n')
-
     for pod in condensed_metrics_dict:
         pod_dict = condensed_metrics_dict[pod]
         namespace = pod_dict['namespace']
@@ -179,8 +178,8 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name):
         for epoch_time in pod_metrics_dict:
             pod_metric_dict = pod_metrics_dict[epoch_time]
             duration_in_hours = float(pod_metric_dict['duration']) / 3600
-            cpu = float(pod_metric_dict.get('cpu', 0))
-            req_cpu = float(pod_metric_dict.get('allocated_cpu', 0))
+            cpu = float(pod_metric_dict.get('allocated_cpu', 0))
+            req_cpu = float(pod_metric_dict.get('cpu', 0))
             req_mem = float(pod_metric_dict.get('allocated_memory', 0)) / 2**20
             metrics_by_namespace[namespace]['cpu'] += cpu
             metrics_by_namespace[namespace]['req_cpu'] += req_cpu
@@ -239,13 +238,13 @@ def write_metrics_log(metrics_dict, file_name, openshift_cluster_name):
             gid_number = cf_project_id
             start_time = datetime.datetime.fromtimestamp(float(epoch_time)).strftime("%Y-%m-%dT%H:%M:%S")
             end_time = datetime.datetime.fromtimestamp(float(epoch_time + pod_metric_dict['duration'])).strftime("%Y-%m-%dT%H:%M:%S")
-            duration = '0-%s' % datetime.timedelta(seconds=pod_metric_dict['duration'])
+            duration = pod_metric_dict['duration']
             cpu = pod_metric_dict.get('cpu', 0)
             req_cpu = pod_metric_dict.get('allocated_cpu', 0)
             req_mem = float(pod_metric_dict.get('allocated_memory', 0)) / 2**20
             info_list = [
                 str(job_id), cluster_name, account_name, group_name, str(gid_number),
-                start_time, end_time, duration, str(cpu), str(req_cpu), str(req_mem), pod_name
+                start_time, end_time, str(duration), str(cpu), str(req_cpu), str(req_mem), pod_name
                 ]
             f.write('|'.join(info_list))
             f.write('\n')
