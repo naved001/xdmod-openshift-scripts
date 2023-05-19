@@ -21,10 +21,10 @@ import openshift
 import utils
 
 
-CPU_METRIC = 'kube_pod_resource_request{unit="cores"}'
-ALLOCATED_CPU_METRIC = 'kube_pod_resource_limit{unit="cores"}'
-ALLOCATED_MEMORY_METRIC = 'kube_pod_resource_limit{unit="bytes"}'
-PVC_USAGE = 'kube_persistentvolumeclaim_resource_requests_storage_bytes'
+CPU_REQUEST = 'kube_pod_resource_request{unit="cores"}'
+MEMORY_REQUEST = 'kube_pod_resource_request{unit="bytes"}'
+CPU_LIMIT = 'kube_pod_resource_limit{unit="cores"}'
+MEMORY_LIMIT = 'kube_pod_resource_limit{unit="bytes"}'
 
 def main():
     parser = argparse.ArgumentParser()
@@ -55,23 +55,23 @@ def main():
     print("Generating report for %s in %s" % (report_date, output_file))
 
     token = openshift.get_auth_token()
-    cpu_metrics = utils.query_metric(openshift_url, token, CPU_METRIC, report_date, disable_ssl)
-    allocated_cpu_metrics = utils.query_metric(
-        openshift_url, token, ALLOCATED_CPU_METRIC, report_date, disable_ssl)
-    allocated_memory_metrics = utils.query_metric(
-        openshift_url, token, ALLOCATED_MEMORY_METRIC, report_date, disable_ssl)
+
+    cpu_request_metrics = utils.query_metric(openshift_url, token, CPU_REQUEST, report_date, disable_ssl)
+    cpu_limit_metrics = utils.query_metric(openshift_url, token, CPU_LIMIT, report_date, disable_ssl)
+    memory_request_metrics = utils.query_metric(openshift_url, token, MEMORY_REQUEST, report_date, disable_ssl)
+    memory_limit_metrics = utils.query_metric(openshift_url, token, MEMORY_LIMIT, report_date, disable_ssl)
 
     metrics_dict = {}
-    storage_dict = {}
-    utils.merge_metrics('cpu', cpu_metrics, metrics_dict)
-    utils.merge_metrics('allocated_cpu', allocated_cpu_metrics, metrics_dict)
-    utils.merge_metrics('allocated_memory', allocated_memory_metrics, metrics_dict)
+    utils.merge_metrics('cpu_request', cpu_request_metrics, metrics_dict)
+    utils.merge_metrics('cpu_limit', cpu_limit_metrics, metrics_dict)
+    utils.merge_metrics('memory_request', memory_request_metrics, metrics_dict)
+    utils.merge_metrics('memory_limit', memory_limit_metrics, metrics_dict)
+
     condensed_metrics_dict = utils.condense_metrics(
-        metrics_dict, ['cpu', 'allocated_cpu', 'memory'])
+        metrics_dict, ['cpu_request', 'cpu_limit', 'memory_request', 'memory_limit'])
 
     utils.write_metrics_by_namespace(condensed_metrics_dict, 'namespace-' + output_file)
-
-    utils.write_metrics_log(condensed_metrics_dict, output_file, openshift_cluster_name)
+    utils.write_metrics_by_pod(condensed_metrics_dict, 'pod-' + output_file, openshift_cluster_name)
 
 if __name__ == '__main__':
     main()
