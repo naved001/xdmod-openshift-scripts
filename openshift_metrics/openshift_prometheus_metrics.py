@@ -25,6 +25,12 @@ CPU_REQUEST = 'kube_pod_resource_request{unit="cores"}'
 MEMORY_REQUEST = 'kube_pod_resource_request{unit="bytes"}'
 CPU_LIMIT = 'kube_pod_resource_limit{unit="cores"}'
 MEMORY_LIMIT = 'kube_pod_resource_limit{unit="bytes"}'
+GPU_REQUEST = 'kube_pod_resource_request{resource="nvidia.com/gpu"}'
+
+# CPU_REQUEST = 'avg_over_time(kube_pod_resource_request{unit="cores"}[1h])'
+# MEMORY_REQUEST = 'avg_over_time(kube_pod_resource_request{unit="bytes"}[1h])'
+# CPU_LIMIT = 'avg_over_time(kube_pod_resource_limit{unit="cores"}[1h])'
+# MEMORY_LIMIT = 'avg_over_time(kube_pod_resource_limit{unit="bytes"}[1h])'
 
 def main():
     parser = argparse.ArgumentParser()
@@ -33,7 +39,7 @@ def main():
     parser.add_argument("--openshift-cluster-name", help="OpenShift cluster name",
                         default=os.getenv('OPENSHIFT_CLUSTER_NAME'))
     parser.add_argument("--report-date", help="report date (ex: 2022-03-14)",
-                        default=(datetime.datetime.today() - datetime.timedelta(days=1)).strftime('%Y-%m-%d'))
+                        default=(datetime.datetime.today()).strftime('%Y-%m-%d'))
     parser.add_argument("--disable-ssl",
                         default=os.getenv('OPENSHIFT_DISABLE_SSL', False))
     parser.add_argument("--output-file")
@@ -56,21 +62,26 @@ def main():
 
     token = openshift.get_auth_token()
 
-    cpu_request_metrics = utils.query_metric(openshift_url, token, CPU_REQUEST, report_date, disable_ssl)
-    cpu_limit_metrics = utils.query_metric(openshift_url, token, CPU_LIMIT, report_date, disable_ssl)
-    memory_request_metrics = utils.query_metric(openshift_url, token, MEMORY_REQUEST, report_date, disable_ssl)
-    memory_limit_metrics = utils.query_metric(openshift_url, token, MEMORY_LIMIT, report_date, disable_ssl)
-
     metrics_dict = {}
-    utils.merge_metrics('cpu_request', cpu_request_metrics, metrics_dict)
-    utils.merge_metrics('cpu_limit', cpu_limit_metrics, metrics_dict)
-    utils.merge_metrics('memory_request', memory_request_metrics, metrics_dict)
-    utils.merge_metrics('memory_limit', memory_limit_metrics, metrics_dict)
+
+    date_chunks = utils.get_date_chunks(report_date)
+    report_end_date = report_date
+    report_start_date = (datetime.datetime.strptime(report_end_date, '%Y-%m-%d') - datetime.timedelta(days=21)).strftime('%Y-%m-%d')
+
+    for start_date, end_date in date_chunks:
+        print(start_date)
+        print(end_date)
+        cpu_request_metrics = utils.query_metric(openshift_url, token, CPU_REQUEST, start_date, end_date, disable_ssl)
+        memory_request_metrics = utils.query_metric(openshift_url, token, MEMORY_REQUEST, start_date, end_date, disable_ssl)
+        gpu_request_metrics = utils.query_metric(openshift_url, token, GPU_REQUEST, start_date, end_date, disable_ssl)
+        utils.merge_metrics('cpu_request', cpu_request_metrics, metrics_dict)
+        utils.merge_metrics('memory_request', memory_request_metrics, metrics_dict)
+        utils.merge_metrics('gpu_request', gpu_request_metrics, metrics_dict)
 
     condensed_metrics_dict = utils.condense_metrics(
-        metrics_dict, ['cpu_request', 'cpu_limit', 'memory_request', 'memory_limit'])
+        metrics_dict, ['cpu_request', 'memory_request', 'gpu_request'])
 
-    utils.write_metrics_by_namespace(condensed_metrics_dict, 'namespace-' + output_file)
+    utils.write_metrics_by_namespace(condensed_metrics_dict, 'namespace-' + output_file, report_start_date, report_end_date)
     utils.write_metrics_by_pod(condensed_metrics_dict, 'pod-' + output_file, openshift_cluster_name)
 
 if __name__ == '__main__':

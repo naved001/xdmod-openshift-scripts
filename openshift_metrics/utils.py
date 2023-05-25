@@ -20,12 +20,12 @@ import openshift
 
 DELIMITER = '|'
 
-def query_metric(openshift_url, token, metric, report_date, disable_ssl=False,
+def query_metric(openshift_url, token, metric, report_start_date, report_end_date, disable_ssl=False,
                  retry=3):
     attempt = 0
     data = None
     headers = {'Authorization': "Bearer %s" % token}
-    day_url_vars = "start=%sT00:00:00Z&end=%sT23:59:59Z" % (report_date, report_date)
+    day_url_vars = "start=%sT00:00:00Z&end=%sT23:59:59Z" % (report_start_date, report_end_date)
     print("Retrieving metric: %s" % metric)
     for attempt in range(retry):
         url = "%s/api/v1/query_range?query=%s&%s&step=60s" % (openshift_url, metric, day_url_vars)
@@ -50,6 +50,21 @@ def get_namespace_annotations():
         namespace_dict = namespace.as_dict()['metadata']
         namespaces_dict[namespace_dict['name']] = namespace_dict['annotations']
     return namespaces_dict
+
+def get_date_chunks(end_date):
+    date_format = '%Y-%m-%d'
+    end_date = datetime.datetime.strptime(end_date, date_format)
+    start_date = end_date - datetime.timedelta(days=7)
+
+    date_chunks = []
+    while start_date <= end_date:
+        chunk_end_date = start_date + datetime.timedelta(days=6)
+        if chunk_end_date > end_date:
+            chunk_end_date = end_date
+        date_chunks.append((start_date.strftime(date_format), chunk_end_date.strftime(date_format)))
+        start_date += datetime.timedelta(days=7)
+
+    return date_chunks
 
 def merge_metrics(metric_name, metric_list, output_dict):
     for metric in metric_list:
@@ -95,7 +110,7 @@ def condense_metrics(input_metrics_dict, metrics_to_check):
 
     return condensed_dict
 
-def write_metrics_by_namespace(condensed_metrics_dict, file_name):
+def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_start_date, report_end_date):
     count = 0
     metrics_by_namespace = {}
     namespace_annotations = get_namespace_annotations()
@@ -104,7 +119,10 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name):
     headers = [
                 "Namespace",
                 "Group/Coldfront_PI Name",
+                "Start Date",
+                "End Date",
                 "CPU Request Hours",
+                "GPU Request Hours",
                 "Memory Request Hours",
             ]
     f.write(DELIMITER.join(headers))
@@ -121,6 +139,7 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name):
             metrics_by_namespace[namespace] = {'pi': cf_pi,
                                                 'cpu_request_hours': 0,
                                                 'memory_request_hours': 0,
+                                                'gpu_request_hours': 0,
                                             }
 
         for epoch_time in pod_metrics_dict:
@@ -128,16 +147,21 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name):
 
             duration_in_hours = float(pod_metric_dict['duration']) / 3600
             cpu_request = float(pod_metric_dict.get('cpu_request', 0))
+            gpu_request = float(pod_metric_dict.get('gpu_request', 0))
             memory_request = float(pod_metric_dict.get('memory_request', 0)) / 2**20
 
-            metrics_by_namespace[namespace]['cpu_request_hours'] += round(cpu_request*duration_in_hours, 2)
-            metrics_by_namespace[namespace]['memory_request_hours'] += round(memory_request*duration_in_hours, 2)
+            metrics_by_namespace[namespace]['cpu_request_hours'] += round(cpu_request*duration_in_hours, 4)
+            metrics_by_namespace[namespace]['gpu_request_hours'] += round(gpu_request*duration_in_hours, 4)
+            metrics_by_namespace[namespace]['memory_request_hours'] += round(memory_request*duration_in_hours, 4)
 
     for namespace in metrics_by_namespace:
         metrics = metrics_by_namespace[namespace]
         row = [ namespace,
                 metrics['pi'],
+                report_start_date,
+                report_end_date,
                 str(metrics['cpu_request_hours']),
+                str(metrics['gpu_request_hours']),
                 str(metrics['memory_request_hours']),
             ]
         f.write(DELIMITER.join(row))
@@ -159,9 +183,8 @@ def write_metrics_by_pod(metrics_dict, file_name, openshift_cluster_name):
                 "End Time",
                 "Duration (sec)",
                 "CPU Request",
-                "CPU Limit",
+                "GPU Request",
                 "Memory Request (MiB)",
-                "Memory Limit (MiB)",
                 "Pod Name"
             ]
     f.write(DELIMITER.join(headers))
@@ -186,9 +209,8 @@ def write_metrics_by_pod(metrics_dict, file_name, openshift_cluster_name):
             end_time = datetime.datetime.fromtimestamp(float(epoch_time + pod_metric_dict['duration'])).strftime("%Y-%m-%dT%H:%M:%S")
             duration = pod_metric_dict['duration']
             cpu_request = pod_metric_dict.get('cpu_request', 0)
-            cpu_limit = pod_metric_dict.get('cpu_limit', 0)
+            gpu_request = pod_metric_dict.get('gpu_request', 0)
             memory_request = float(pod_metric_dict.get('memory_request', 0)) / 2**20
-            memory_limit = float(pod_metric_dict.get('memory_limit', 0)) / 2**20
 
             info_list = [
                 str(job_id),
@@ -200,9 +222,8 @@ def write_metrics_by_pod(metrics_dict, file_name, openshift_cluster_name):
                 end_time,
                 str(duration),
                 str(cpu_request),
-                str(cpu_limit),
+                str(gpu_request),
                 str(memory_request),
-                str(memory_limit),
                 pod_name
                 ]
 
