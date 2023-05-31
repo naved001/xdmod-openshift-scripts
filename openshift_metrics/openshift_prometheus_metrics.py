@@ -40,6 +40,7 @@ def main():
                         default=os.getenv('OPENSHIFT_CLUSTER_NAME'))
     parser.add_argument("--report-date", help="report date (ex: 2022-03-14)",
                         default=(datetime.datetime.today()).strftime('%Y-%m-%d'))
+    parser.add_argument("--report-length", help="length of report in days", default=7)
     parser.add_argument("--disable-ssl",
                         default=os.getenv('OPENSHIFT_DISABLE_SSL', False))
     parser.add_argument("--output-file")
@@ -52,6 +53,7 @@ def main():
     openshift_url = args.openshift_url
     openshift_cluster_name = args.openshift_cluster_name
     report_date = args.report_date
+    report_length = int(args.report_length)
     disable_ssl = args.disable_ssl
     if args.output_file:
         output_file = args.output_file
@@ -64,7 +66,7 @@ def main():
 
     metrics_dict = {}
 
-    date_chunks = utils.get_date_chunks(report_date)
+    date_chunks = utils.get_date_chunks(report_date, report_length)
     report_end_date = report_date
     report_start_date = (datetime.datetime.strptime(report_end_date, '%Y-%m-%d') - datetime.timedelta(days=21)).strftime('%Y-%m-%d')
 

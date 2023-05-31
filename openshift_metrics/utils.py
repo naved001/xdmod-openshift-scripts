@@ -51,10 +51,10 @@ def get_namespace_annotations():
         namespaces_dict[namespace_dict['name']] = namespace_dict['annotations']
     return namespaces_dict
 
-def get_date_chunks(end_date):
+def get_date_chunks(end_date, report_length):
     date_format = '%Y-%m-%d'
     end_date = datetime.datetime.strptime(end_date, date_format)
-    start_date = end_date - datetime.timedelta(days=7)
+    start_date = end_date - datetime.timedelta(days=report_length)
 
     date_chunks = []
     while start_date <= end_date:
