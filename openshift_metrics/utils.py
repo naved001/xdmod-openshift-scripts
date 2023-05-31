@@ -20,6 +20,10 @@ import openshift
 
 DELIMITER = '|'
 
+class EmptyResultError(Exception):
+    """Raise when no results are retrieved for a query"""
+    pass
+
 def query_metric(openshift_url, token, metric, report_start_date, report_end_date, disable_ssl=False,
                  retry=3):
     attempt = 0
@@ -40,7 +44,7 @@ def query_metric(openshift_url, token, metric, report_start_date, report_end_dat
                 print("Empty result set")
         time.sleep(3)
     if not data:
-        raise Exception('Error retrieving metric: %s' % metric)
+        raise EmptyResultError('Error retrieving metric: %s' % metric)
     return data
 
 def get_namespace_annotations():

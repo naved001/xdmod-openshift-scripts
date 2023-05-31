@@ -75,10 +75,15 @@ def main():
         print(end_date)
         cpu_request_metrics = utils.query_metric(openshift_url, token, CPU_REQUEST, start_date, end_date, disable_ssl)
         memory_request_metrics = utils.query_metric(openshift_url, token, MEMORY_REQUEST, start_date, end_date, disable_ssl)
-        gpu_request_metrics = utils.query_metric(openshift_url, token, GPU_REQUEST, start_date, end_date, disable_ssl)
         utils.merge_metrics('cpu_request', cpu_request_metrics, metrics_dict)
         utils.merge_metrics('memory_request', memory_request_metrics, metrics_dict)
-        utils.merge_metrics('gpu_request', gpu_request_metrics, metrics_dict)
+
+        # because if nobody requests a GPU then we will get an empty set
+        try:
+            gpu_request_metrics = utils.query_metric(openshift_url, token, GPU_REQUEST, start_date, end_date, disable_ssl)
+            utils.merge_metrics('gpu_request', gpu_request_metrics, metrics_dict)
+        except utils.EmptyResultError:
+            pass
 
     condensed_metrics_dict = utils.condense_metrics(
         metrics_dict, ['cpu_request', 'memory_request', 'gpu_request'])
