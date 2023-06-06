@@ -23,9 +23,7 @@ import utils
 
 CPU_REQUEST = 'kube_pod_resource_request{unit="cores"}'
 MEMORY_REQUEST = 'kube_pod_resource_request{unit="bytes"}'
-CPU_LIMIT = 'kube_pod_resource_limit{unit="cores"}'
-MEMORY_LIMIT = 'kube_pod_resource_limit{unit="bytes"}'
-GPU_REQUEST = 'kube_pod_resource_request{resource="nvidia.com/gpu"}'
+GPU_REQUEST = 'kube_pod_status_phase{phase="Running"} * on(pod, namespace) kube_pod_resource_request{resource="nvidia.com/gpu"}'
 
 # CPU_REQUEST = 'avg_over_time(kube_pod_resource_request{unit="cores"}[1h])'
 # MEMORY_REQUEST = 'avg_over_time(kube_pod_resource_request{unit="bytes"}[1h])'
