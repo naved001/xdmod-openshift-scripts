@@ -23,12 +23,7 @@ import utils
 
 CPU_REQUEST = 'kube_pod_resource_request{unit="cores"}'
 MEMORY_REQUEST = 'kube_pod_resource_request{unit="bytes"}'
-GPU_REQUEST = 'kube_pod_status_phase{phase="Running"} * on(pod, namespace) kube_pod_resource_request{resource="nvidia.com/gpu"}'
-
-# CPU_REQUEST = 'avg_over_time(kube_pod_resource_request{unit="cores"}[1h])'
-# MEMORY_REQUEST = 'avg_over_time(kube_pod_resource_request{unit="bytes"}[1h])'
-# CPU_LIMIT = 'avg_over_time(kube_pod_resource_limit{unit="cores"}[1h])'
-# MEMORY_LIMIT = 'avg_over_time(kube_pod_resource_limit{unit="bytes"}[1h])'
+GPU_REQUEST = 'kube_pod_status_phase{phase="Running"} * on(pod, namespace) group_right() kube_pod_resource_request{resource=~".*gpu.*"}'
 
 def main():
     parser = argparse.ArgumentParser()
@@ -38,7 +33,7 @@ def main():
                         default=os.getenv('OPENSHIFT_CLUSTER_NAME'))
     parser.add_argument("--report-date", help="report date (ex: 2022-03-14)",
                         default=(datetime.datetime.today()).strftime('%Y-%m-%d'))
-    parser.add_argument("--report-length", help="length of report in days", default=7)
+    parser.add_argument("--report-length", help="length of report in days", default=15)
     parser.add_argument("--disable-ssl",
                         default=os.getenv('OPENSHIFT_DISABLE_SSL', False))
     parser.add_argument("--output-file")
@@ -75,7 +70,6 @@ def main():
         memory_request_metrics = utils.query_metric(openshift_url, token, MEMORY_REQUEST, start_date, end_date, disable_ssl)
         utils.merge_metrics('cpu_request', cpu_request_metrics, metrics_dict)
         utils.merge_metrics('memory_request', memory_request_metrics, metrics_dict)
-
         # because if nobody requests a GPU then we will get an empty set
         try:
             gpu_request_metrics = utils.query_metric(openshift_url, token, GPU_REQUEST, start_date, end_date, disable_ssl)
