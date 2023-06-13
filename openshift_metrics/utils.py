@@ -15,10 +15,34 @@ import datetime
 import json
 import requests
 import time
+import math
 
 import openshift
 
 DELIMITER = '|'
+
+# GPU types
+GPU_A100 = "nvidia.com/gpu_A100"
+GPU_A10 = "nvidia.com/gpu_A10"
+GPU_MOC = "nvidia.com/gpu"
+NO_GPU = "No GPU"
+
+# SU Types
+SU_CPU = "SU_CPU"
+SU_A100_GPU = "SU_A100_GPU"
+SU_A10_GPU = "SU_A10_GPU"
+SU_MOC_GPU = "SU_MOC_GPU"
+SU_UNKNOWN_GPU = "SU_UNKNOWN_GPU"
+SU_UNKNOWN = "SU_UNKNOWN"
+
+SU_COST = {
+            SU_A100_GPU: 1.92,
+            SU_A10_GPU: 0.384,
+            SU_CPU: 0.016,
+            SU_MOC_GPU: 0.512,
+            SU_UNKNOWN_GPU: 0.768,
+            SU_UNKNOWN: 0.0,
+}
 
 class EmptyResultError(Exception):
     """Raise when no results are retrieved for a query"""
@@ -71,53 +95,57 @@ def get_date_chunks(end_date, report_length):
     return date_chunks
 
 
-def get_service_unit(cpu_count, memory_count, gpu_count, gpu_type=None):
-    if gpu_type == "No GPU":
+def get_service_unit(cpu_count, memory_count, gpu_count, gpu_type):
+    su_type = SU_UNKNOWN
+    su_count = 0
+    if gpu_type == NO_GPU:
         gpu_type = None
-        gpu_count = 0
-    flavor_dict = {
-                    "cpu-su.1": {"gpu": 0, "cpu": 1, "ram": 4, "cost": 0.016 },
-                    "cpu-su.2": {"gpu": 0, "cpu": 2, "ram": 8, "cost": 0.032 },
-                    "cpu-su.4": {"gpu": 0, "cpu": 4, "ram": 16, "cost": 0.064 },
-                    "cpu-su.8": {"gpu": 0, "cpu": 8, "ram": 32, "cost": 0.128 },
-                    "cpu-su.16": {"gpu": 0, "cpu": 16, "ram": 64, "cost": 0.256 },
-                    "mem-a.1": {"gpu": 0, "cpu": 1, "ram": 8, "cost": 0.032 },
-                    "mem-a.2": {"gpu": 0, "cpu": 2, "ram": 16, "cost": 0.064 },
-                    "mem-a.4": {"gpu": 0, "cpu": 4, "ram": 32, "cost": 0.128 },
-                    "mem-a.8": {"gpu": 0, "cpu": 8, "ram": 64, "cost": 0.256 },
-                    "mem-a.16": {"gpu": 0, "cpu": 16, "ram": 128, "cost": 0.512 },
-                    "gpu-su-a100.1": {"gpu": 1, "cpu": 24, "ram": 96, "cost": 2.633 },
-                    "gpu-su-a100.2": {"gpu": 1, "cpu": 48, "ram": 192, "cost": 5.266 },
-                    "gpu-su-a100.4": {"gpu": 1, "cpu": 96, "ram": 384, "cost": 10.532 },
-                    "nvidia.com/gpu": {"gpu": 1, "cpu": 24, "ram": 256, "cost": 0.512 },
-                    "gpu-su-a2.1": {"gpu": 1, "cpu": 6, "ram": 32, "cost": 0.463 },
-                    "gpu-su-a2.2": {"gpu": 2, "cpu": 12, "ram": 64, "cost": 0.926 },
-                    "gpu-su-a2.4": {"gpu": 4, "cpu": 24, "ram": 128, "cost": 1.852 },
-                    "gpu-su-a2.8": {"gpu": 8, "cpu": 48, "ram": 254, "cost": 3.704 },
-                }
 
+    # pods that requested a specific GPU but weren't scheduled may report 0 GPU
+    if gpu_type is not None and gpu_count == 0:
+        return SU_UNKNOWN_GPU, 0, "GPU"
+
+    # pods in weird states
     if cpu_count == 0 or memory_count == 0:
-        return "Unknown", 0
+        return SU_UNKNOWN, 0, "CPU"
 
-    best_flavor = None
-    min_cost = float('inf')
+    known_gpu_su = {
+                    GPU_A100: SU_A100_GPU,
+                    GPU_A10: SU_A10_GPU,
+                    GPU_MOC: SU_MOC_GPU,
+            }
 
-    for flavor, specs in flavor_dict.items():
-        if specs['cpu'] >= cpu_count and specs['ram'] >= memory_count:
-            if gpu_count == 0 and specs['gpu'] == 0:  # No GPU requested, only consider flavors without GPU
-                cost = specs['cost']
-                if cost < min_cost:
-                    best_flavor = flavor
-                    min_cost = cost
-            elif specs['gpu'] >= gpu_count:
-                if gpu_type is None or flavor.startswith(gpu_type):
-                    # this may need to be updated based on how the GPU resources are named in kubernetes
-                    cost = specs['cost']
-                    if cost < min_cost:
-                        best_flavor = flavor
-                        min_cost = cost
+    # GPU count for some configs is -1 for math reasons, in reality it is 0
+    su_config = { SU_CPU: { "gpu": -1, "cpu": 1, "ram": 4 },
+                  SU_A100_GPU: { "gpu": 1, "cpu": 24, "ram": 96 },
+                  SU_A10_GPU: { "gpu": 1, "cpu": 8, "ram": 64 },
+                  SU_UNKNOWN_GPU: { "gpu": 1, "cpu": 8, "ram": 64 },
+                  SU_UNKNOWN: { "gpu": -1, "cpu": 1, "ram": 1 },
+                  SU_MOC_GPU: { "gpu": 1, "cpu": 24, "ram": 128 },
+            }
 
-    return best_flavor, min_cost
+    if gpu_type is None and gpu_count == 0:
+        su_type = SU_CPU
+    else:
+        su_type = known_gpu_su.get(gpu_type, SU_UNKNOWN_GPU)
+
+    # because openshift offers fractional CPUs, so we round it up.
+    cpu_count = math.ceil(cpu_count)
+
+    cpu_multiplier = cpu_count/su_config[su_type]["cpu"]
+    gpu_multiplier = gpu_count/su_config[su_type]["gpu"]
+    memory_multiplier = math.ceil(memory_count/su_config[su_type]["ram"])
+
+    su_count = math.ceil(max(cpu_multiplier, gpu_multiplier, memory_multiplier))
+
+    if cpu_multiplier >= gpu_multiplier and cpu_multiplier >= memory_multiplier:
+        determining_resource = "CPU"
+    elif gpu_multiplier >= cpu_multiplier and gpu_multiplier >= memory_multiplier:
+            determining_resource = "GPU"
+    else:
+        determining_resource = "RAM"
+
+    return su_type, su_count, determining_resource
 
 
 def merge_metrics(metric_name, metric_list, output_dict):
@@ -131,7 +159,7 @@ def merge_metrics(metric_name, metric_list, output_dict):
         if gpu_type not in ['cpu', 'memory']:
             output_dict[pod]['gpu_type'] = gpu_type
         else:
-            output_dict[pod]['gpu_type'] = 'No GPU'
+            output_dict[pod]['gpu_type'] = NO_GPU
 
         for value in metric['values']:
             epoch_time = value[0]
@@ -207,11 +235,11 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_start_d
             gpu_request = float(pod_metric_dict.get('gpu_request', 0))
             memory_request = float(pod_metric_dict.get('memory_request', 0)) / 2**30
 
-            su_type, su_price = get_service_unit(float(cpu_request), memory_request, float(gpu_request), gpu_type)
+            su_type, su_count, _ = get_service_unit(float(cpu_request), memory_request, float(gpu_request), gpu_type)
 
-            su_charge = round(su_price*duration_in_hours, 4)
+            pod_cost = SU_COST[su_type] * su_count * duration_in_hours
 
-            metrics_by_namespace[namespace]['total_cost'] += round(su_price*duration_in_hours, 4)
+            metrics_by_namespace[namespace]['total_cost'] += round(pod_cost, 4)
 
     for namespace in metrics_by_namespace:
         metrics = metrics_by_namespace[namespace]
@@ -238,15 +266,16 @@ def write_metrics_by_pod(metrics_dict, file_name, openshift_cluster_name):
                 "Group ID Number",
                 "Start Time",
                 "End Time",
-                "Duration (hours)",
+                "Duration (Hours)",
                 "Pod Name",
                 "CPU Request",
                 "GPU Request",
                 "GPU Type",
                 "Memory Request (GiB)",
+                "Determining Resource",
                 "SU Type",
-                "SU Price",
-                "SU Charge"
+                "Multiplier",
+                "Charge Hours"
             ]
     f.write(DELIMITER.join(headers))
     f.write('\n')
@@ -273,8 +302,8 @@ def write_metrics_by_pod(metrics_dict, file_name, openshift_cluster_name):
             cpu_request = pod_metric_dict.get('cpu_request', 0)
             gpu_request = pod_metric_dict.get('gpu_request', 0)
             memory_request = round(float(pod_metric_dict.get('memory_request', 0)) / 2**30, 4)
-            su_type, su_price = get_service_unit(float(cpu_request), memory_request, float(gpu_request), gpu_type)
-            su_charge = round(su_price*duration, 4)
+            su_type, su_count, determining_resource = get_service_unit(float(cpu_request), memory_request, float(gpu_request), gpu_type)
+            pod_cost = SU_COST[su_type] * su_count * duration
 
             info_list = [
                 str(job_id),
@@ -290,9 +319,10 @@ def write_metrics_by_pod(metrics_dict, file_name, openshift_cluster_name):
                 str(gpu_request),
                 gpu_type,
                 str(memory_request),
-                str(su_type),
-                str(su_price),
-                str(su_charge),
+                determining_resource,
+                su_type,
+                str(su_count),
+                str(duration*su_count)
                 ]
 
             f.write(DELIMITER.join(info_list))
