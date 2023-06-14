@@ -21,9 +21,9 @@ import openshift
 import utils
 
 
-CPU_REQUEST = 'kube_pod_resource_request{unit="cores"}'
-MEMORY_REQUEST = 'kube_pod_resource_request{unit="bytes"}'
-GPU_REQUEST = 'kube_pod_status_phase{phase="Running"} * on(pod, namespace) group_right() kube_pod_resource_request{resource=~".*gpu.*"}'
+CPU_REQUEST = 'kube_pod_resource_request{unit="cores"} unless on(pod, namespace) kube_pod_status_unschedulable'
+MEMORY_REQUEST = 'kube_pod_resource_request{unit="bytes"} unless on(pod, namespace) kube_pod_status_unschedulable'
+GPU_REQUEST = 'kube_pod_resource_request{resource=~".*gpu.*"} unless on(pod, namespace) kube_pod_status_unschedulable'
 
 def main():
     parser = argparse.ArgumentParser()

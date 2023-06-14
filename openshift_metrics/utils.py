@@ -19,7 +19,7 @@ import math
 
 import openshift
 
-DELIMITER = '|'
+DELIMITER = ','
 
 # GPU types
 GPU_A100 = "nvidia.com/gpu_A100"
