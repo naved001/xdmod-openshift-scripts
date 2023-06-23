@@ -199,6 +199,94 @@ def condense_metrics(input_metrics_dict, metrics_to_check):
 
     return condensed_dict
 
+def write_metrics_by_namespace_differently(condensed_metrics_dict, file_name, report_start_date, report_end_date):
+    metrics_by_namespace = {}
+    namespace_annotations = get_namespace_annotations()
+    print("Writing log to %s" % file_name)
+    f = open(file_name, "w")
+    headers = [
+                "Namespace",
+                "Coldfront_PI Name",
+                "Start Date",
+                "End Date",
+                "_cpu_hours",
+                "_memory_hours",
+                "SU_CPU_HOURS",
+                "SU_A100_GPU_HOURS",
+                "SU_A10_GPU_HOURS",
+                "SU_MOC_GPU_HOURS",
+            ]
+    f.write(DELIMITER.join(headers))
+    f.write('\n')
+
+    for pod in condensed_metrics_dict:
+        pod_dict = condensed_metrics_dict[pod]
+        namespace = pod_dict['namespace']
+        pod_metrics_dict = pod_dict['metrics']
+        namespace_annotation_dict = namespace_annotations.get(namespace, {})
+        cf_pi = namespace_annotation_dict.get('cf_pi', namespace)
+        cf_project_id = namespace_annotation_dict.get('cf_project_id', 1)
+        gpu_type = pod_dict['gpu_type']
+
+        if namespace not in metrics_by_namespace:
+            metrics_by_namespace[namespace] = {'pi': cf_pi,
+                                                '_cpu_hours': 0,
+                                                '_memory_hours': 0,
+                                                'SU_CPU_HOURS': 0,
+                                                'SU_A100_GPU_HOURS': 0,
+                                                'SU_A10_GPU_HOURS': 0,
+                                                'SU_MOC_GPU_HOURS': 0,
+                                                'total_cost': 0,
+                                            }
+
+        for epoch_time in pod_metrics_dict:
+            pod_metric_dict = pod_metrics_dict[epoch_time]
+            duration_in_hours = float(pod_metric_dict['duration']) / 3600
+            cpu_request = float(pod_metric_dict.get('cpu_request', 0))
+            gpu_request = float(pod_metric_dict.get('gpu_request', 0))
+            memory_request = float(pod_metric_dict.get('memory_request', 0)) / 2**30
+
+
+            if gpu_type == GPU_A100:
+                _, su_count, _ = get_service_unit(float(cpu_request), memory_request, float(gpu_request), gpu_type)
+                metrics_by_namespace[namespace]['SU_A100_GPU_HOURS'] += su_count * duration_in_hours
+            elif gpu_type == GPU_A10:
+                _, su_count, _ = get_service_unit(float(cpu_request), memory_request, float(gpu_request), gpu_type)
+                metrics_by_namespace[namespace]['SU_A10_GPU_HOURS'] += su_count * duration_in_hours
+            elif gpu_type == GPU_MOC:
+                _, su_count, _ = get_service_unit(float(cpu_request), memory_request, float(gpu_request), gpu_type)
+                metrics_by_namespace[namespace]['SU_MOC_GPU_HOURS'] += su_count * duration_in_hours
+            else:
+                metrics_by_namespace[namespace]['_cpu_hours'] += cpu_request * duration_in_hours
+                metrics_by_namespace[namespace]['_memory_hours'] += memory_request * duration_in_hours
+
+    for namespace in metrics_by_namespace:
+        # this doesn't make much sense to me (⩺_⩹)
+
+        metrics = metrics_by_namespace[namespace]
+        cpu_multiplier = metrics['_cpu_hours']/1
+        memory_multiplier = metrics['_memory_hours']/4
+
+        su_count_hours = math.ceil(max(cpu_multiplier, memory_multiplier))
+
+        metrics_by_namespace[namespace]['SU_CPU_HOURS'] += su_count_hours
+        row = [ namespace,
+                metrics['pi'],
+                report_start_date,
+                report_end_date,
+                str(metrics['_cpu_hours']),
+                str(metrics['_memory_hours']),
+                str(metrics['SU_CPU_HOURS']),
+                str(metrics['SU_A100_GPU_HOURS']),
+                str(metrics['SU_A10_GPU_HOURS']),
+                str(metrics['SU_MOC_GPU_HOURS']),
+            ]
+        f.write(DELIMITER.join(row))
+        f.write('\n')
+
+    f.close()
+
+
 def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_start_date, report_end_date):
     count = 0
     metrics_by_namespace = {}

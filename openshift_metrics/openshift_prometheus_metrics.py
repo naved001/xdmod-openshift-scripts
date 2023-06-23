@@ -80,6 +80,7 @@ def main():
     condensed_metrics_dict = utils.condense_metrics(
         metrics_dict, ['cpu_request', 'memory_request', 'gpu_request'])
 
+    utils.write_metrics_by_namespace_differently(condensed_metrics_dict, 'weird-' + output_file, report_start_date, report_end_date)
     utils.write_metrics_by_namespace(condensed_metrics_dict, 'namespace-' + output_file, report_start_date, report_end_date)
     utils.write_metrics_by_pod(condensed_metrics_dict, 'pod-' + output_file, openshift_cluster_name)
 
