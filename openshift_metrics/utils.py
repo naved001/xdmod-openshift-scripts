@@ -211,10 +211,8 @@ def write_metrics_by_namespace_differently(condensed_metrics_dict, file_name, re
                 "End Date",
                 "_cpu_hours",
                 "_memory_hours",
-                "SU_CPU_HOURS",
-                "SU_A100_GPU_HOURS",
-                "SU_A10_GPU_HOURS",
-                "SU_MOC_GPU_HOURS",
+                "SU TYPE",
+                "SU Type Hours",
             ]
     f.write(DELIMITER.join(headers))
     f.write('\n')
@@ -261,8 +259,6 @@ def write_metrics_by_namespace_differently(condensed_metrics_dict, file_name, re
                 metrics_by_namespace[namespace]['_memory_hours'] += memory_request * duration_in_hours
 
     for namespace in metrics_by_namespace:
-        # this doesn't make much sense to me (⩺_⩹)
-
         metrics = metrics_by_namespace[namespace]
         cpu_multiplier = metrics['_cpu_hours']/1
         memory_multiplier = metrics['_memory_hours']/4
@@ -270,19 +266,25 @@ def write_metrics_by_namespace_differently(condensed_metrics_dict, file_name, re
         su_count_hours = math.ceil(max(cpu_multiplier, memory_multiplier))
 
         metrics_by_namespace[namespace]['SU_CPU_HOURS'] += su_count_hours
-        row = [ namespace,
-                metrics['pi'],
-                report_start_date,
-                report_end_date,
-                str(metrics['_cpu_hours']),
-                str(metrics['_memory_hours']),
-                str(metrics['SU_CPU_HOURS']),
-                str(metrics['SU_A100_GPU_HOURS']),
-                str(metrics['SU_A10_GPU_HOURS']),
-                str(metrics['SU_MOC_GPU_HOURS']),
-            ]
+
+        row = [namespace, metrics['pi'], report_start_date, report_end_date, str(metrics['_cpu_hours']), str(metrics['_memory_hours']), SU_CPU, str(metrics['SU_CPU_HOURS'])]
         f.write(DELIMITER.join(row))
         f.write('\n')
+
+        if metrics['SU_A100_GPU_HOURS'] != 0:
+            row = [namespace, metrics['pi'], report_start_date, report_end_date, 'NA', 'NA' , SU_A100_GPU, str(metrics['SU_A100_GPU_HOURS'])]
+            f.write(DELIMITER.join(row))
+            f.write('\n')
+
+        if metrics['SU_A10_GPU_HOURS'] != 0:
+            row = [namespace, metrics['pi'], report_start_date, report_end_date, 'NA', 'NA' , SU_A10_GPU, str(metrics['SU_A10_GPU_HOURS'])]
+            f.write(DELIMITER.join(row))
+            f.write('\n')
+
+        if metrics['SU_MOC_GPU_HOURS'] != 0:
+            row = [namespace, metrics['pi'], report_start_date, report_end_date, 'NA', 'NA' , SU_MOC_GPU, str(metrics['SU_MOC_GPU_HOURS'])]
+            f.write(DELIMITER.join(row))
+            f.write('\n')
 
     f.close()
 
