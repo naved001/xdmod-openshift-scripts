@@ -61,7 +61,7 @@ def main():
 
     date_chunks = utils.get_date_chunks(report_date, report_length)
     report_end_date = report_date
-    report_start_date = (datetime.datetime.strptime(report_end_date, '%Y-%m-%d') - datetime.timedelta(days=15)).strftime('%Y-%m-%d')
+    report_start_date = (datetime.datetime.strptime(report_end_date, '%Y-%m-%d') - datetime.timedelta(days=report_length - 1)).strftime('%Y-%m-%d')
 
     for start_date, end_date in date_chunks:
         print(start_date)

@@ -82,7 +82,7 @@ def get_namespace_annotations():
 def get_date_chunks(end_date, report_length):
     date_format = '%Y-%m-%d'
     end_date = datetime.datetime.strptime(end_date, date_format)
-    start_date = end_date - datetime.timedelta(days=report_length)
+    start_date = end_date - datetime.timedelta(days=report_length - 1)
 
     date_chunks = []
     while start_date <= end_date:
