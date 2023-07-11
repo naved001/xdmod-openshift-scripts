@@ -15,6 +15,7 @@ import argparse
 import datetime
 import os
 import sys
+import json
 
 import openshift
 
@@ -51,7 +52,7 @@ def main():
     if args.output_file:
         output_file = args.output_file
     else:
-        output_file = "%s.log" % report_date
+        output_file = "%s.json" % report_date
 
     print("Generating report for %s in %s" % (report_date, output_file))
 
@@ -59,29 +60,28 @@ def main():
 
     metrics_dict = {}
 
-    date_chunks = utils.get_date_chunks(report_date, report_length)
     report_end_date = report_date
     report_start_date = (datetime.datetime.strptime(report_end_date, '%Y-%m-%d') - datetime.timedelta(days=report_length - 1)).strftime('%Y-%m-%d')
 
-    for start_date, end_date in date_chunks:
-        print(start_date)
-        print(end_date)
-        cpu_request_metrics = utils.query_metric(openshift_url, token, CPU_REQUEST, start_date, end_date, disable_ssl)
-        memory_request_metrics = utils.query_metric(openshift_url, token, MEMORY_REQUEST, start_date, end_date, disable_ssl)
-        utils.merge_metrics('cpu_request', cpu_request_metrics, metrics_dict)
-        utils.merge_metrics('memory_request', memory_request_metrics, metrics_dict)
-        # because if nobody requests a GPU then we will get an empty set
-        try:
-            gpu_request_metrics = utils.query_metric(openshift_url, token, GPU_REQUEST, start_date, end_date, disable_ssl)
-            utils.merge_metrics('gpu_request', gpu_request_metrics, metrics_dict)
-        except utils.EmptyResultError:
-            pass
+    print(report_start_date)
+    print(report_end_date)
+    metrics_dict['start_date'] = report_start_date
+    metrics_dict['end_date'] = report_end_date
 
-    condensed_metrics_dict = utils.condense_metrics(
-        metrics_dict, ['cpu_request', 'memory_request', 'gpu_request'])
+    cpu_request_metrics = utils.query_metric(openshift_url, token, CPU_REQUEST, report_start_date, report_end_date, disable_ssl)
+    memory_request_metrics = utils.query_metric(openshift_url, token, MEMORY_REQUEST, report_start_date, report_end_date, disable_ssl)
+    metrics_dict['cpu_metrics'] = cpu_request_metrics
+    metrics_dict['memory_metrics'] = memory_request_metrics
 
-    utils.write_metrics_by_namespace_differently(condensed_metrics_dict, 'namespace-' + output_file, report_start_date, report_end_date)
-    utils.write_metrics_by_pod(condensed_metrics_dict, 'pod-' + output_file, openshift_cluster_name)
+    # because if nobody requests a GPU then we will get an empty set
+    try:
+        gpu_request_metrics = utils.query_metric(openshift_url, token, GPU_REQUEST, report_start_date, report_end_date, disable_ssl)
+        metrics_dict['gpu_metrics'] = gpu_request_metrics
+    except utils.EmptyResultError:
+        pass
+
+    with open("metrics-" + output_file, "w") as f:
+        json.dump(metrics_dict, f)
 
 if __name__ == '__main__':
     main()
