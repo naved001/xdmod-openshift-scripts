@@ -35,14 +35,6 @@ SU_MOC_GPU = "SU_MOC_GPU"
 SU_UNKNOWN_GPU = "SU_UNKNOWN_GPU"
 SU_UNKNOWN = "SU_UNKNOWN"
 
-SU_COST = {
-            SU_A100_GPU: 1.92,
-            SU_A10_GPU: 0.384,
-            SU_CPU: 0.016,
-            SU_MOC_GPU: 0.512,
-            SU_UNKNOWN_GPU: 0.768,
-            SU_UNKNOWN: 0.0,
-}
 
 class EmptyResultError(Exception):
     """Raise when no results are retrieved for a query"""
@@ -78,22 +70,6 @@ def get_namespace_annotations():
         namespace_dict = namespace.as_dict()['metadata']
         namespaces_dict[namespace_dict['name']] = namespace_dict['annotations']
     return namespaces_dict
-
-def get_date_chunks(end_date, report_length):
-    date_format = '%Y-%m-%d'
-    end_date = datetime.datetime.strptime(end_date, date_format)
-    start_date = end_date - datetime.timedelta(days=report_length - 1)
-
-    date_chunks = []
-    while start_date <= end_date:
-        chunk_end_date = start_date + datetime.timedelta(days=6)
-        if chunk_end_date > end_date:
-            chunk_end_date = end_date
-        date_chunks.append((start_date.strftime(date_format), chunk_end_date.strftime(date_format)))
-        start_date += datetime.timedelta(days=7)
-
-    return date_chunks
-
 
 def get_service_unit(cpu_count, memory_count, gpu_count, gpu_type):
     su_type = SU_UNKNOWN
@@ -286,61 +262,6 @@ def write_metrics_by_namespace_differently(condensed_metrics_dict, file_name, re
             f.write(DELIMITER.join(row))
             f.write('\n')
 
-    f.close()
-
-
-def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_start_date, report_end_date):
-    count = 0
-    metrics_by_namespace = {}
-    namespace_annotations = get_namespace_annotations()
-    print("Writing log to %s" % file_name)
-    f = open(file_name, "w")
-    headers = [
-                "Namespace",
-                "Group/Coldfront_PI Name",
-                "Start Date",
-                "End Date",
-                "Total cost",
-            ]
-    f.write(DELIMITER.join(headers))
-    f.write('\n')
-    for pod in condensed_metrics_dict:
-        pod_dict = condensed_metrics_dict[pod]
-        namespace = pod_dict['namespace']
-        pod_metrics_dict = pod_dict['metrics']
-        namespace_annotation_dict = namespace_annotations.get(namespace, {})
-        cf_pi = namespace_annotation_dict.get('cf_pi', namespace)
-        cf_project_id = namespace_annotation_dict.get('cf_project_id', 1)
-        gpu_type = pod_dict['gpu_type']
-
-        if namespace not in metrics_by_namespace:
-            metrics_by_namespace[namespace] = {'pi': cf_pi,
-                                                'total_cost': 0,
-                                            }
-        for epoch_time in pod_metrics_dict:
-            pod_metric_dict = pod_metrics_dict[epoch_time]
-
-            duration_in_hours = float(pod_metric_dict['duration']) / 3600
-            cpu_request = float(pod_metric_dict.get('cpu_request', 0))
-            gpu_request = float(pod_metric_dict.get('gpu_request', 0))
-            memory_request = float(pod_metric_dict.get('memory_request', 0)) / 2**30
-
-            su_type, su_count, _ = get_service_unit(float(cpu_request), memory_request, float(gpu_request), gpu_type)
-
-            pod_cost = SU_COST[su_type] * su_count * duration_in_hours
-
-            metrics_by_namespace[namespace]['total_cost'] += round(pod_cost, 4)
-
-    for namespace in metrics_by_namespace:
-        metrics = metrics_by_namespace[namespace]
-        row = [ namespace,
-                metrics['pi'],
-                report_start_date,
-                report_end_date,
-                str(metrics['total_cost']),
-            ]
-        f.write(DELIMITER.join(row))
-        f.write('\n')
     f.close()
 
 def write_metrics_by_pod(metrics_dict, file_name, openshift_cluster_name):
