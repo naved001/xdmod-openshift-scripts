@@ -13,12 +13,11 @@ def compare_dates(date_str1, date_str2):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--files", nargs="*")
+    parser.add_argument("files", nargs="+")
     args = parser.parse_args()
     files = args.files
     merged_dictionary = {}
     output_file = "%s.log" % (datetime.datetime.today()).strftime('%Y-%m-%d')
-    openshift_cluster_name = 'nerc-prod'
 
     report_start_date = None
     report_end_date = None
@@ -47,8 +46,8 @@ def main():
     print(report_start_date)
     print(report_end_date)
     condensed_metrics_dict = utils.condense_metrics(merged_dictionary, ['cpu_request', 'memory_request', 'gpu_request'])
-    utils.write_metrics_by_namespace_differently(condensed_metrics_dict, 'namespace-' + output_file, report_start_date, report_end_date)
-    utils.write_metrics_by_pod(condensed_metrics_dict, 'pod-' + output_file, openshift_cluster_name)
+    utils.write_metrics_by_namespace(condensed_metrics_dict, 'namespace-' + output_file, report_start_date, report_end_date)
+    utils.write_metrics_by_pod(condensed_metrics_dict, 'pod-' + output_file)
 
 if __name__ == "__main__":
     main()

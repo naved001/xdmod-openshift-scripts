@@ -16,6 +16,7 @@ import json
 import requests
 import time
 import math
+import csv
 
 import openshift
 
@@ -175,23 +176,28 @@ def condense_metrics(input_metrics_dict, metrics_to_check):
 
     return condensed_dict
 
-def write_metrics_by_namespace_differently(condensed_metrics_dict, file_name, report_start_date, report_end_date):
+def csv_writer(rows, file_name):
+    print("Writing csv to %s" % file_name)
+    with open(file_name, "w") as csvfile:
+        csvwriter = csv.writer(csvfile)
+        csvwriter.writerows(rows)
+
+def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_start_date, report_end_date):
     metrics_by_namespace = {}
+    rows = []
     namespace_annotations = get_namespace_annotations()
-    print("Writing log to %s" % file_name)
-    f = open(file_name, "w")
     headers = [
                 "Namespace",
                 "Coldfront_PI Name",
-                "Start Date",
-                "End Date",
+                "Report Start Date",
+                "Report End Date",
                 "_cpu_hours",
                 "_memory_hours",
                 "SU TYPE",
                 "SU Type Hours",
             ]
-    f.write(DELIMITER.join(headers))
-    f.write('\n')
+
+    rows.append(headers)
 
     for pod in condensed_metrics_dict:
         pod_dict = condensed_metrics_dict[pod]
@@ -244,39 +250,31 @@ def write_metrics_by_namespace_differently(condensed_metrics_dict, file_name, re
         metrics_by_namespace[namespace]['SU_CPU_HOURS'] += su_count_hours
 
         row = [namespace, metrics['pi'], report_start_date, report_end_date, str(metrics['_cpu_hours']), str(metrics['_memory_hours']), SU_CPU, str(metrics['SU_CPU_HOURS'])]
-        f.write(DELIMITER.join(row))
-        f.write('\n')
+        rows.append(row)
 
         if metrics['SU_A100_GPU_HOURS'] != 0:
             row = [namespace, metrics['pi'], report_start_date, report_end_date, 'NA', 'NA' , SU_A100_GPU, str(metrics['SU_A100_GPU_HOURS'])]
-            f.write(DELIMITER.join(row))
-            f.write('\n')
+            rows.append(row)
 
         if metrics['SU_A10_GPU_HOURS'] != 0:
             row = [namespace, metrics['pi'], report_start_date, report_end_date, 'NA', 'NA' , SU_A10_GPU, str(metrics['SU_A10_GPU_HOURS'])]
-            f.write(DELIMITER.join(row))
-            f.write('\n')
+            rows.append(row)
 
         if metrics['SU_MOC_GPU_HOURS'] != 0:
             row = [namespace, metrics['pi'], report_start_date, report_end_date, 'NA', 'NA' , SU_MOC_GPU, str(metrics['SU_MOC_GPU_HOURS'])]
-            f.write(DELIMITER.join(row))
-            f.write('\n')
+            rows.append(row)
 
-    f.close()
+    csv_writer(rows, file_name)
 
-def write_metrics_by_pod(metrics_dict, file_name, openshift_cluster_name):
-    count = 0
+def write_metrics_by_pod(metrics_dict, file_name):
+    rows = []
     namespace_annotations = get_namespace_annotations()
-    print("Writing log to %s" % file_name)
-    f = open(file_name, "w")
     headers = [
-                "Job ID",
-                "Cluster Name",
-                "Account Name",
-                "Group/Coldfront_PI Name",
-                "Group ID Number",
-                "Start Time",
-                "End Time",
+                "Namespace",
+                "Coldfront_PI Name",
+                "Coldfront Project ID ",
+                "Pod Start Time",
+                "Pod End Time",
                 "Duration (Hours)",
                 "Pod Name",
                 "CPU Request",
@@ -285,11 +283,10 @@ def write_metrics_by_pod(metrics_dict, file_name, openshift_cluster_name):
                 "Memory Request (GiB)",
                 "Determining Resource",
                 "SU Type",
-                "Multiplier",
-                "Charge Hours"
+                "SU Count",
             ]
-    f.write(DELIMITER.join(headers))
-    f.write('\n')
+    rows.append(headers)
+
     for pod in metrics_dict:
         pod_dict = metrics_dict[pod]
         namespace = pod_dict['namespace']
@@ -301,12 +298,6 @@ def write_metrics_by_pod(metrics_dict, file_name, openshift_cluster_name):
 
         for epoch_time in pod_metrics_dict:
             pod_metric_dict = pod_metrics_dict[epoch_time]
-            job_id = count
-            pod_name = pod
-            cluster_name = openshift_cluster_name
-            account_name = namespace
-            group_name = cf_pi
-            gid_number = cf_project_id
             start_time = datetime.datetime.fromtimestamp(float(epoch_time)).strftime("%Y-%m-%dT%H:%M:%S")
             end_time = datetime.datetime.fromtimestamp(float(epoch_time + pod_metric_dict['duration'])).strftime("%Y-%m-%dT%H:%M:%S")
             duration = round(float(pod_metric_dict['duration']) / 3600, 4)
@@ -314,29 +305,24 @@ def write_metrics_by_pod(metrics_dict, file_name, openshift_cluster_name):
             gpu_request = pod_metric_dict.get('gpu_request', 0)
             memory_request = round(float(pod_metric_dict.get('memory_request', 0)) / 2**30, 4)
             su_type, su_count, determining_resource = get_service_unit(float(cpu_request), memory_request, float(gpu_request), gpu_type)
-            pod_cost = SU_COST[su_type] * su_count * duration
 
             info_list = [
-                str(job_id),
-                cluster_name,
-                account_name,
-                group_name,
-                str(gid_number),
+                namespace,
+                cf_pi,
+                cf_project_id,
                 start_time,
                 end_time,
-                str(duration),
-                pod_name,
-                str(cpu_request),
-                str(gpu_request),
+                duration,
+                pod,
+                cpu_request,
+                gpu_request,
                 gpu_type,
-                str(memory_request),
+                memory_request,
                 determining_resource,
                 su_type,
-                str(su_count),
-                str(duration*su_count)
+                su_count,
                 ]
 
-            f.write(DELIMITER.join(info_list))
-            f.write('\n')
-            count = count + 1
-    f.close()
+            rows.append(info_list)
+
+    csv_writer(rows, file_name)
