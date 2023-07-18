@@ -11,6 +11,8 @@
 #   under the License.
 #
 
+"""Holds bunch of utility functions"""
+
 import datetime
 import json
 import requests
@@ -42,17 +44,18 @@ class EmptyResultError(Exception):
 
 
 def query_metric(openshift_url, token, metric, report_start_date, report_end_date):
+    """Queries metric from prometheus/thanos for the provided openshift_url"""
     data = None
     headers = {'Authorization': f"Bearer {token}"}
     day_url_vars = f"start={report_start_date}T00:00:00Z&end={report_end_date}T23:59:59Z"
     print(f"Retrieving metric: {metric}")
     for _ in range(3):
         url = f"{openshift_url}/api/v1/query_range?query={metric}&{day_url_vars}&step=60s"
-        r = requests.get(url, headers=headers, verify=True)
-        if r.status_code != 200:
-            print(f"{r.status_code} Response: {r.reason}")
+        response = requests.get(url, headers=headers, verify=True)
+        if response.status_code != 200:
+            print(f"{response.status_code} Response: {response.reason}")
         else:
-            data = r.json()['data']['result']
+            data = response.json()['data']['result']
             if data:
                 break
             else:
@@ -63,6 +66,10 @@ def query_metric(openshift_url, token, metric, report_start_date, report_end_dat
     return data
 
 def get_namespace_annotations():
+    """
+    Returns namespace annotations
+    Used for finding coldfront pi name and id
+    """
     namespaces_dict = {}
     namespaces = openshift.selector("namespaces").objects()
     for namespace in namespaces:
@@ -71,6 +78,9 @@ def get_namespace_annotations():
     return namespaces_dict
 
 def get_service_unit(cpu_count, memory_count, gpu_count, gpu_type):
+    """
+    Returns the type of service unit, the count, and the determining resource
+    """
     su_type = SU_UNKNOWN
     su_count = 0
     if gpu_type == NO_GPU:
@@ -124,6 +134,7 @@ def get_service_unit(cpu_count, memory_count, gpu_count, gpu_type):
 
 
 def merge_metrics(metric_name, metric_list, output_dict):
+    """Merge metrics by pod"""
     for metric in metric_list:
         pod = metric['metric']['pod']
         if pod not in output_dict:
@@ -144,6 +155,10 @@ def merge_metrics(metric_name, metric_list, output_dict):
     return output_dict
 
 def condense_metrics(input_metrics_dict, metrics_to_check):
+    """
+    Checks if the value of metrics is the same, and removes redundant
+    metrics while updating the duration
+    """
     condensed_dict = {}
     for pod, pod_dict in input_metrics_dict.items():
         metrics_dict = pod_dict['metrics']
@@ -175,12 +190,21 @@ def condense_metrics(input_metrics_dict, metrics_to_check):
     return condensed_dict
 
 def csv_writer(rows, file_name):
+    """Writes rows as csv to file_name"""
     print(f"Writing csv to {file_name}")
     with open(file_name, "w") as csvfile:
         csvwriter = csv.writer(csvfile)
         csvwriter.writerows(rows)
 
 def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_start_date, report_end_date):
+    """
+    Process metrics dictionary to aggregate usage by namespace and then write that to a file
+
+    It sums up the cpu and memory resources for all non-gpu pods per project and then calculates
+    service units on the total.
+
+    For GPU resources, it relies on the `get_service_unit` method to get the SU count.
+    """
     metrics_by_namespace = {}
     rows = []
     namespace_annotations = get_namespace_annotations()
@@ -265,6 +289,12 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_start_d
     csv_writer(rows, file_name)
 
 def write_metrics_by_pod(metrics_dict, file_name):
+    """
+    Generates metrics report by pod
+
+    It currently includes service units for each pod, but that doesn't make sense
+    as we are calculating the CPU/Memory service units at the project level
+    """
     rows = []
     namespace_annotations = get_namespace_annotations()
     headers = [

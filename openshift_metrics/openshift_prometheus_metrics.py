@@ -11,6 +11,8 @@
 #   under the License.
 #
 
+"""Collect and save metrics from prometheus"""
+
 import argparse
 import datetime
 import os
@@ -27,6 +29,8 @@ MEMORY_REQUEST = 'kube_pod_resource_request{unit="bytes"} unless on(pod, namespa
 GPU_REQUEST = 'kube_pod_resource_request{resource=~".*gpu.*"} unless on(pod, namespace) kube_pod_status_unschedulable'
 
 def main():
+    """This method kick starts the process of collecting and saving the metrics"""
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--openshift-url", help="OpenShift Prometheus URL",
                         default=os.getenv('OPENSHIFT_PROMETHEUS_URL'))
