@@ -43,14 +43,14 @@ class EmptyResultError(Exception):
 
 def query_metric(openshift_url, token, metric, report_start_date, report_end_date):
     data = None
-    headers = {'Authorization': "Bearer %s" % token}
-    day_url_vars = "start=%sT00:00:00Z&end=%sT23:59:59Z" % (report_start_date, report_end_date)
-    print("Retrieving metric: %s" % metric)
+    headers = {'Authorization': f"Bearer {token}"}
+    day_url_vars = f"start={report_start_date}T00:00:00Z&end={report_end_date}T23:59:59Z"
+    print(f"Retrieving metric: {metric}")
     for _ in range(3):
-        url = "%s/api/v1/query_range?query=%s&%s&step=60s" % (openshift_url, metric, day_url_vars)
+        url = f"{openshift_url}/api/v1/query_range?query={metric}&{day_url_vars}&step=60s"
         r = requests.get(url, headers=headers, verify=True)
         if r.status_code != 200:
-            print("%s Response: %s" % (r.status_code, r.reason))
+            print(f"{r.status_code} Response: {r.reason}")
         else:
             data = r.json()['data']['result']
             if data:
@@ -59,7 +59,7 @@ def query_metric(openshift_url, token, metric, report_start_date, report_end_dat
                 print("Empty result set")
         time.sleep(3)
     if not data:
-        raise EmptyResultError('Error retrieving metric: %s' % metric)
+        raise EmptyResultError(f'Error retrieving metric: {metric}')
     return data
 
 def get_namespace_annotations():
@@ -175,7 +175,7 @@ def condense_metrics(input_metrics_dict, metrics_to_check):
     return condensed_dict
 
 def csv_writer(rows, file_name):
-    print("Writing csv to %s" % file_name)
+    print(f"Writing csv to {file_name}")
     with open(file_name, "w") as csvfile:
         csvwriter = csv.writer(csvfile)
         csvwriter.writerows(rows)

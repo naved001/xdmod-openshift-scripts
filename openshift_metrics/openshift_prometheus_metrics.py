@@ -49,9 +49,9 @@ def main():
     if args.output_file:
         output_file = args.output_file
     else:
-        output_file = "%s.json" % report_date
+        output_file = f"{report_date}.json"
 
-    print("Generating report for %s in %s" % (report_date, output_file))
+    print(f"Generating report for {report_date} in {output_file}" % (report_date, output_file))
 
     token = openshift.get_auth_token()
 
