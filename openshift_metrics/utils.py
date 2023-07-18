@@ -39,18 +39,16 @@ SU_UNKNOWN = "SU_UNKNOWN"
 
 class EmptyResultError(Exception):
     """Raise when no results are retrieved for a query"""
-    pass
 
-def query_metric(openshift_url, token, metric, report_start_date, report_end_date, disable_ssl=False,
-                 retry=3):
-    attempt = 0
+
+def query_metric(openshift_url, token, metric, report_start_date, report_end_date):
     data = None
     headers = {'Authorization': "Bearer %s" % token}
     day_url_vars = "start=%sT00:00:00Z&end=%sT23:59:59Z" % (report_start_date, report_end_date)
     print("Retrieving metric: %s" % metric)
-    for attempt in range(retry):
+    for _ in range(3):
         url = "%s/api/v1/query_range?query=%s&%s&step=60s" % (openshift_url, metric, day_url_vars)
-        r = requests.get(url, headers=headers, verify=(not disable_ssl))
+        r = requests.get(url, headers=headers, verify=True)
         if r.status_code != 200:
             print("%s Response: %s" % (r.status_code, r.reason))
         else:

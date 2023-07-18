@@ -35,8 +35,6 @@ def main():
     parser.add_argument("--report-date", help="report date (ex: 2022-03-14)",
                         default=(datetime.datetime.today()).strftime('%Y-%m-%d'))
     parser.add_argument("--report-length", help="length of report in days", default=15)
-    parser.add_argument("--disable-ssl",
-                        default=os.getenv('OPENSHIFT_DISABLE_SSL', False))
     parser.add_argument("--output-file")
 
     args = parser.parse_args()
@@ -48,7 +46,6 @@ def main():
     openshift_cluster_name = args.openshift_cluster_name
     report_date = args.report_date
     report_length = int(args.report_length)
-    disable_ssl = args.disable_ssl
     if args.output_file:
         output_file = args.output_file
     else:
@@ -68,14 +65,14 @@ def main():
     metrics_dict['start_date'] = report_start_date
     metrics_dict['end_date'] = report_end_date
 
-    cpu_request_metrics = utils.query_metric(openshift_url, token, CPU_REQUEST, report_start_date, report_end_date, disable_ssl)
-    memory_request_metrics = utils.query_metric(openshift_url, token, MEMORY_REQUEST, report_start_date, report_end_date, disable_ssl)
+    cpu_request_metrics = utils.query_metric(openshift_url, token, CPU_REQUEST, report_start_date, report_end_date)
+    memory_request_metrics = utils.query_metric(openshift_url, token, MEMORY_REQUEST, report_start_date, report_end_date)
     metrics_dict['cpu_metrics'] = cpu_request_metrics
     metrics_dict['memory_metrics'] = memory_request_metrics
 
     # because if nobody requests a GPU then we will get an empty set
     try:
-        gpu_request_metrics = utils.query_metric(openshift_url, token, GPU_REQUEST, report_start_date, report_end_date, disable_ssl)
+        gpu_request_metrics = utils.query_metric(openshift_url, token, GPU_REQUEST, report_start_date, report_end_date)
         metrics_dict['gpu_metrics'] = gpu_request_metrics
     except utils.EmptyResultError:
         pass
