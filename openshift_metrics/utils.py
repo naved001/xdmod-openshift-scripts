@@ -14,15 +14,13 @@
 """Holds bunch of utility functions"""
 
 import datetime
-import json
-import requests
 import time
 import math
 import csv
+import requests
 
 import openshift
 
-DELIMITER = ','
 
 # GPU types
 GPU_A100 = "nvidia.com/gpu_A100"
@@ -58,8 +56,7 @@ def query_metric(openshift_url, token, metric, report_start_date, report_end_dat
             data = response.json()['data']['result']
             if data:
                 break
-            else:
-                print("Empty result set")
+            print("Empty result set")
         time.sleep(3)
     if not data:
         raise EmptyResultError(f'Error retrieving metric: {metric}')
@@ -227,7 +224,6 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_start_d
         pod_metrics_dict = pod_dict['metrics']
         namespace_annotation_dict = namespace_annotations.get(namespace, {})
         cf_pi = namespace_annotation_dict.get('cf_pi', namespace)
-        cf_project_id = namespace_annotation_dict.get('cf_project_id', 1)
         gpu_type = pod_dict['gpu_type']
 
         if namespace not in metrics_by_namespace:
