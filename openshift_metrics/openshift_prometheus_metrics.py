@@ -34,8 +34,6 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--openshift-url", help="OpenShift Prometheus URL",
                         default=os.getenv('OPENSHIFT_PROMETHEUS_URL'))
-    parser.add_argument("--openshift-cluster-name", help="OpenShift cluster name",
-                        default=os.getenv('OPENSHIFT_CLUSTER_NAME'))
     parser.add_argument("--report-date", help="report date (ex: 2022-03-14)",
                         default=(datetime.datetime.today()).strftime('%Y-%m-%d'))
     parser.add_argument("--report-length", help="length of report in days", default=15)
@@ -44,10 +42,7 @@ def main():
     args = parser.parse_args()
     if not args.openshift_url:
         sys.exit('Must specify --openshift-url or set OPENSHIFT_PROMETHEUS_URL in your environment')
-    if not args.openshift_cluster_name:
-        sys.exit('Must specify --openshift-cluster-name or set OPENSHIFT_CLUSTER_NAME in your environment')
     openshift_url = args.openshift_url
-    openshift_cluster_name = args.openshift_cluster_name
     report_date = args.report_date
     report_length = int(args.report_length)
     if args.output_file:
@@ -81,8 +76,8 @@ def main():
     except utils.EmptyResultError:
         pass
 
-    with open("metrics-" + output_file, "w") as f:
-        json.dump(metrics_dict, f)
+    with open("metrics-" + output_file, "w") as file:
+        json.dump(metrics_dict, file)
 
 if __name__ == '__main__':
     main()
