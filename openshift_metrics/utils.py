@@ -169,7 +169,7 @@ def condense_metrics(input_metrics_dict, metrics_to_check):
             for metric in metrics_to_check:
                 if metrics_dict[start_epoch_time].get(metric, 0) != metrics_dict[epoch_time].get(metric, 0):
                     same_metrics = False
-            
+
             if not same_metrics:
                 duration = epoch_time - start_epoch_time - 1
                 start_metric_dict['duration'] = duration
@@ -218,8 +218,7 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_start_d
 
     rows.append(headers)
 
-    for pod in condensed_metrics_dict:
-        pod_dict = condensed_metrics_dict[pod]
+    for pod, pod_dict in condensed_metrics_dict.items():
         namespace = pod_dict['namespace']
         pod_metrics_dict = pod_dict['metrics']
         namespace_annotation_dict = namespace_annotations.get(namespace, {})
@@ -237,8 +236,7 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_start_d
                                                 'total_cost': 0,
                                             }
 
-        for epoch_time in pod_metrics_dict:
-            pod_metric_dict = pod_metrics_dict[epoch_time]
+        for epoch_time, pod_metric_dict in pod_metrics_dict.items():
             duration_in_hours = float(pod_metric_dict['duration']) / 3600
             cpu_request = float(pod_metric_dict.get('cpu_request', 0))
             gpu_request = float(pod_metric_dict.get('gpu_request', 0))
@@ -258,14 +256,13 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_start_d
                 metrics_by_namespace[namespace]['_cpu_hours'] += cpu_request * duration_in_hours
                 metrics_by_namespace[namespace]['_memory_hours'] += memory_request * duration_in_hours
 
-    for namespace in metrics_by_namespace:
-        metrics = metrics_by_namespace[namespace]
+    for namespace, metrics in metrics_by_namespace.items():
         cpu_multiplier = metrics['_cpu_hours']/1
         memory_multiplier = metrics['_memory_hours']/4
 
         su_count_hours = math.ceil(max(cpu_multiplier, memory_multiplier))
 
-        metrics_by_namespace[namespace]['SU_CPU_HOURS'] += su_count_hours
+        metrics['SU_CPU_HOURS'] += su_count_hours
 
         row = [namespace, metrics['pi'], report_start_date, report_end_date, str(metrics['_cpu_hours']), str(metrics['_memory_hours']), SU_CPU, str(metrics['SU_CPU_HOURS'])]
         rows.append(row)
@@ -311,8 +308,7 @@ def write_metrics_by_pod(metrics_dict, file_name):
             ]
     rows.append(headers)
 
-    for pod in metrics_dict:
-        pod_dict = metrics_dict[pod]
+    for pod, pod_dict in metrics_dict.items():
         namespace = pod_dict['namespace']
         pod_metrics_dict = pod_dict['metrics']
         gpu_type = pod_dict['gpu_type']
@@ -320,8 +316,7 @@ def write_metrics_by_pod(metrics_dict, file_name):
         cf_pi = namespace_annotation_dict.get('cf_pi', namespace)
         cf_project_id = namespace_annotation_dict.get('cf_project_id', 1)
 
-        for epoch_time in pod_metrics_dict:
-            pod_metric_dict = pod_metrics_dict[epoch_time]
+        for epoch_time, pod_metric_dict in pod_metrics_dict.items():
             start_time = datetime.datetime.fromtimestamp(float(epoch_time)).strftime("%Y-%m-%dT%H:%M:%S")
             end_time = datetime.datetime.fromtimestamp(float(epoch_time + pod_metric_dict['duration'])).strftime("%Y-%m-%dT%H:%M:%S")
             duration = round(float(pod_metric_dict['duration']) / 3600, 4)
