@@ -35,13 +35,9 @@ def main():
             memory_request_metrics = metrics_from_file["memory_metrics"]
             gpu_request_metrics = metrics_from_file.get("gpu_metrics", None)
             utils.merge_metrics("cpu_request", cpu_request_metrics, merged_dictionary)
-            utils.merge_metrics(
-                "memory_request", memory_request_metrics, merged_dictionary
-            )
+            utils.merge_metrics("memory_request", memory_request_metrics, merged_dictionary)
             if gpu_request_metrics is not None:
-                utils.merge_metrics(
-                    "gpu_request", gpu_request_metrics, merged_dictionary
-                )
+                utils.merge_metrics("gpu_request", gpu_request_metrics, merged_dictionary)
 
             if report_start_date is None:
                 report_start_date = metrics_from_file["start_date"]

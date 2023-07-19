@@ -44,7 +44,7 @@ class EmptyResultError(Exception):
 def query_metric(openshift_url, token, metric, report_start_date, report_end_date):
     """Queries metric from prometheus/thanos for the provided openshift_url"""
     data = None
-    headers = {'Authorization': f"Bearer {token}"}
+    headers = {"Authorization": f"Bearer {token}"}
     day_url_vars = f"start={report_start_date}T00:00:00Z&end={report_end_date}T23:59:59Z"
     print(f"Retrieving metric: {metric}")
     for _ in range(3):
@@ -53,14 +53,15 @@ def query_metric(openshift_url, token, metric, report_start_date, report_end_dat
         if response.status_code != 200:
             print(f"{response.status_code} Response: {response.reason}")
         else:
-            data = response.json()['data']['result']
+            data = response.json()["data"]["result"]
             if data:
                 break
             print("Empty result set")
         time.sleep(3)
     if not data:
-        raise EmptyResultError(f'Error retrieving metric: {metric}')
+        raise EmptyResultError(f"Error retrieving metric: {metric}")
     return data
+
 
 def get_namespace_annotations():
     """
@@ -70,9 +71,10 @@ def get_namespace_annotations():
     namespaces_dict = {}
     namespaces = openshift.selector("namespaces").objects()
     for namespace in namespaces:
-        namespace_dict = namespace.as_dict()['metadata']
-        namespaces_dict[namespace_dict['name']] = namespace_dict['annotations']
+        namespace_dict = namespace.as_dict()["metadata"]
+        namespaces_dict[namespace_dict["name"]] = namespace_dict["annotations"]
     return namespaces_dict
+
 
 def get_service_unit(cpu_count, memory_count, gpu_count, gpu_type):
     """
@@ -92,19 +94,20 @@ def get_service_unit(cpu_count, memory_count, gpu_count, gpu_type):
         return SU_UNKNOWN, 0, "CPU"
 
     known_gpu_su = {
-                    GPU_A100: SU_A100_GPU,
-                    GPU_A10: SU_A10_GPU,
-                    GPU_MOC: SU_MOC_GPU,
-            }
+        GPU_A100: SU_A100_GPU,
+        GPU_A10: SU_A10_GPU,
+        GPU_MOC: SU_MOC_GPU,
+    }
 
     # GPU count for some configs is -1 for math reasons, in reality it is 0
-    su_config = { SU_CPU: { "gpu": -1, "cpu": 1, "ram": 4 },
-                  SU_A100_GPU: { "gpu": 1, "cpu": 24, "ram": 96 },
-                  SU_A10_GPU: { "gpu": 1, "cpu": 8, "ram": 64 },
-                  SU_UNKNOWN_GPU: { "gpu": 1, "cpu": 8, "ram": 64 },
-                  SU_UNKNOWN: { "gpu": -1, "cpu": 1, "ram": 1 },
-                  SU_MOC_GPU: { "gpu": 1, "cpu": 24, "ram": 128 },
-            }
+    su_config = {
+        SU_CPU: {"gpu": -1, "cpu": 1, "ram": 4},
+        SU_A100_GPU: {"gpu": 1, "cpu": 24, "ram": 96},
+        SU_A10_GPU: {"gpu": 1, "cpu": 8, "ram": 64},
+        SU_UNKNOWN_GPU: {"gpu": 1, "cpu": 8, "ram": 64},
+        SU_UNKNOWN: {"gpu": -1, "cpu": 1, "ram": 1},
+        SU_MOC_GPU: {"gpu": 1, "cpu": 24, "ram": 128},
+    }
 
     if gpu_type is None and gpu_count == 0:
         su_type = SU_CPU
@@ -114,9 +117,9 @@ def get_service_unit(cpu_count, memory_count, gpu_count, gpu_type):
     # because openshift offers fractional CPUs, so we round it up.
     cpu_count = math.ceil(cpu_count)
 
-    cpu_multiplier = cpu_count/su_config[su_type]["cpu"]
-    gpu_multiplier = gpu_count/su_config[su_type]["gpu"]
-    memory_multiplier = math.ceil(memory_count/su_config[su_type]["ram"])
+    cpu_multiplier = cpu_count / su_config[su_type]["cpu"]
+    gpu_multiplier = gpu_count / su_config[su_type]["gpu"]
+    memory_multiplier = math.ceil(memory_count / su_config[su_type]["ram"])
 
     su_count = math.ceil(max(cpu_multiplier, gpu_multiplier, memory_multiplier))
 
@@ -133,23 +136,23 @@ def get_service_unit(cpu_count, memory_count, gpu_count, gpu_type):
 def merge_metrics(metric_name, metric_list, output_dict):
     """Merge metrics by pod"""
     for metric in metric_list:
-        pod = metric['metric']['pod']
+        pod = metric["metric"]["pod"]
         if pod not in output_dict:
-            output_dict[pod] = {'namespace': metric['metric']['namespace'],
-                                'metrics': {}}
+            output_dict[pod] = {"namespace": metric["metric"]["namespace"], "metrics": {}}
 
-        gpu_type = metric['metric']['resource']
-        if gpu_type not in ['cpu', 'memory']:
-            output_dict[pod]['gpu_type'] = gpu_type
+        gpu_type = metric["metric"]["resource"]
+        if gpu_type not in ["cpu", "memory"]:
+            output_dict[pod]["gpu_type"] = gpu_type
         else:
-            output_dict[pod]['gpu_type'] = NO_GPU
+            output_dict[pod]["gpu_type"] = NO_GPU
 
-        for value in metric['values']:
+        for value in metric["values"]:
             epoch_time = value[0]
-            if epoch_time not in output_dict[pod]['metrics']:
-                output_dict[pod]['metrics'][epoch_time] = {}
-            output_dict[pod]['metrics'][epoch_time][metric_name] = value[1]
+            if epoch_time not in output_dict[pod]["metrics"]:
+                output_dict[pod]["metrics"][epoch_time] = {}
+            output_dict[pod]["metrics"][epoch_time][metric_name] = value[1]
     return output_dict
+
 
 def condense_metrics(input_metrics_dict, metrics_to_check):
     """
@@ -158,7 +161,7 @@ def condense_metrics(input_metrics_dict, metrics_to_check):
     """
     condensed_dict = {}
     for pod, pod_dict in input_metrics_dict.items():
-        metrics_dict = pod_dict['metrics']
+        metrics_dict = pod_dict["metrics"]
         new_metrics_dict = {}
         epoch_times_list = sorted(metrics_dict.keys())
 
@@ -167,24 +170,25 @@ def condense_metrics(input_metrics_dict, metrics_to_check):
         for epoch_time in epoch_times_list:
             same_metrics = True
             for metric in metrics_to_check:
-                if metrics_dict[start_epoch_time].get(metric, 0) != metrics_dict[epoch_time].get(metric, 0):
+                if metrics_dict[start_epoch_time].get(metric, 0) != metrics_dict[epoch_time].get(metric, 0):  # fmt: skip
                     same_metrics = False
 
             if not same_metrics:
                 duration = epoch_time - start_epoch_time - 1
-                start_metric_dict['duration'] = duration
+                start_metric_dict["duration"] = duration
                 new_metrics_dict[start_epoch_time] = start_metric_dict
                 start_epoch_time = epoch_time
                 start_metric_dict = metrics_dict[start_epoch_time].copy()
         duration = epoch_time - start_epoch_time + 59
-        start_metric_dict['duration'] = duration
+        start_metric_dict["duration"] = duration
         new_metrics_dict[start_epoch_time] = start_metric_dict
 
         new_pod_dict = pod_dict.copy()
-        new_pod_dict['metrics'] = new_metrics_dict
+        new_pod_dict["metrics"] = new_metrics_dict
         condensed_dict[pod] = new_pod_dict
 
     return condensed_dict
+
 
 def csv_writer(rows, file_name):
     """Writes rows as csv to file_name"""
@@ -193,7 +197,10 @@ def csv_writer(rows, file_name):
         csvwriter = csv.writer(csvfile)
         csvwriter.writerows(rows)
 
-def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_start_date, report_end_date):
+
+def write_metrics_by_namespace(
+    condensed_metrics_dict, file_name, report_start_date, report_end_date
+):
     """
     Process metrics dictionary to aggregate usage by namespace and then write that to a file
 
@@ -206,80 +213,125 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_start_d
     rows = []
     namespace_annotations = get_namespace_annotations()
     headers = [
-                "Namespace",
-                "Coldfront_PI Name",
-                "Report Start Date",
-                "Report End Date",
-                "_cpu_hours",
-                "_memory_hours",
-                "SU TYPE",
-                "SU Type Hours",
-            ]
+        "Namespace",
+        "Coldfront_PI Name",
+        "Report Start Date",
+        "Report End Date",
+        "_cpu_hours",
+        "_memory_hours",
+        "SU TYPE",
+        "SU Type Hours",
+    ]
 
     rows.append(headers)
 
     for pod, pod_dict in condensed_metrics_dict.items():
-        namespace = pod_dict['namespace']
-        pod_metrics_dict = pod_dict['metrics']
+        namespace = pod_dict["namespace"]
+        pod_metrics_dict = pod_dict["metrics"]
         namespace_annotation_dict = namespace_annotations.get(namespace, {})
-        cf_pi = namespace_annotation_dict.get('cf_pi', namespace)
-        gpu_type = pod_dict['gpu_type']
+        cf_pi = namespace_annotation_dict.get("cf_pi", namespace)
+        gpu_type = pod_dict["gpu_type"]
 
         if namespace not in metrics_by_namespace:
-            metrics_by_namespace[namespace] = {'pi': cf_pi,
-                                                '_cpu_hours': 0,
-                                                '_memory_hours': 0,
-                                                'SU_CPU_HOURS': 0,
-                                                'SU_A100_GPU_HOURS': 0,
-                                                'SU_A10_GPU_HOURS': 0,
-                                                'SU_MOC_GPU_HOURS': 0,
-                                                'total_cost': 0,
-                                            }
+            metrics_by_namespace[namespace] = {
+                "pi": cf_pi,
+                "_cpu_hours": 0,
+                "_memory_hours": 0,
+                "SU_CPU_HOURS": 0,
+                "SU_A100_GPU_HOURS": 0,
+                "SU_A10_GPU_HOURS": 0,
+                "SU_MOC_GPU_HOURS": 0,
+                "total_cost": 0,
+            }
 
         for epoch_time, pod_metric_dict in pod_metrics_dict.items():
-            duration_in_hours = float(pod_metric_dict['duration']) / 3600
-            cpu_request = float(pod_metric_dict.get('cpu_request', 0))
-            gpu_request = float(pod_metric_dict.get('gpu_request', 0))
-            memory_request = float(pod_metric_dict.get('memory_request', 0)) / 2**30
-
+            duration_in_hours = float(pod_metric_dict["duration"]) / 3600
+            cpu_request = float(pod_metric_dict.get("cpu_request", 0))
+            gpu_request = float(pod_metric_dict.get("gpu_request", 0))
+            memory_request = float(pod_metric_dict.get("memory_request", 0)) / 2**30
 
             if gpu_type == GPU_A100:
-                _, su_count, _ = get_service_unit(float(cpu_request), memory_request, float(gpu_request), gpu_type)
-                metrics_by_namespace[namespace]['SU_A100_GPU_HOURS'] += su_count * duration_in_hours
+                _, su_count, _ = get_service_unit(
+                    float(cpu_request), memory_request, float(gpu_request), gpu_type
+                )
+                metrics_by_namespace[namespace]["SU_A100_GPU_HOURS"] += su_count * duration_in_hours
             elif gpu_type == GPU_A10:
-                _, su_count, _ = get_service_unit(float(cpu_request), memory_request, float(gpu_request), gpu_type)
-                metrics_by_namespace[namespace]['SU_A10_GPU_HOURS'] += su_count * duration_in_hours
+                _, su_count, _ = get_service_unit(
+                    float(cpu_request), memory_request, float(gpu_request), gpu_type
+                )
+                metrics_by_namespace[namespace]["SU_A10_GPU_HOURS"] += su_count * duration_in_hours
             elif gpu_type == GPU_MOC:
-                _, su_count, _ = get_service_unit(float(cpu_request), memory_request, float(gpu_request), gpu_type)
-                metrics_by_namespace[namespace]['SU_MOC_GPU_HOURS'] += su_count * duration_in_hours
+                _, su_count, _ = get_service_unit(
+                    float(cpu_request), memory_request, float(gpu_request), gpu_type
+                )
+                metrics_by_namespace[namespace]["SU_MOC_GPU_HOURS"] += su_count * duration_in_hours
             else:
-                metrics_by_namespace[namespace]['_cpu_hours'] += cpu_request * duration_in_hours
-                metrics_by_namespace[namespace]['_memory_hours'] += memory_request * duration_in_hours
+                metrics_by_namespace[namespace]["_cpu_hours"] += cpu_request * duration_in_hours
+                metrics_by_namespace[namespace]["_memory_hours"] += (
+                    memory_request * duration_in_hours
+                )
 
     for namespace, metrics in metrics_by_namespace.items():
-        cpu_multiplier = metrics['_cpu_hours']/1
-        memory_multiplier = metrics['_memory_hours']/4
+        cpu_multiplier = metrics["_cpu_hours"] / 1
+        memory_multiplier = metrics["_memory_hours"] / 4
 
         su_count_hours = math.ceil(max(cpu_multiplier, memory_multiplier))
 
-        metrics['SU_CPU_HOURS'] += su_count_hours
+        metrics["SU_CPU_HOURS"] += su_count_hours
 
-        row = [namespace, metrics['pi'], report_start_date, report_end_date, str(metrics['_cpu_hours']), str(metrics['_memory_hours']), SU_CPU, str(metrics['SU_CPU_HOURS'])]
+        row = [
+            namespace,
+            metrics["pi"],
+            report_start_date,
+            report_end_date,
+            str(metrics["_cpu_hours"]),
+            str(metrics["_memory_hours"]),
+            SU_CPU,
+            str(metrics["SU_CPU_HOURS"]),
+        ]
         rows.append(row)
 
-        if metrics['SU_A100_GPU_HOURS'] != 0:
-            row = [namespace, metrics['pi'], report_start_date, report_end_date, 'NA', 'NA' , SU_A100_GPU, str(metrics['SU_A100_GPU_HOURS'])]
+        if metrics["SU_A100_GPU_HOURS"] != 0:
+            row = [
+                namespace,
+                metrics["pi"],
+                report_start_date,
+                report_end_date,
+                "NA",
+                "NA",
+                SU_A100_GPU,
+                str(metrics["SU_A100_GPU_HOURS"]),
+            ]
             rows.append(row)
 
-        if metrics['SU_A10_GPU_HOURS'] != 0:
-            row = [namespace, metrics['pi'], report_start_date, report_end_date, 'NA', 'NA' , SU_A10_GPU, str(metrics['SU_A10_GPU_HOURS'])]
+        if metrics["SU_A10_GPU_HOURS"] != 0:
+            row = [
+                namespace,
+                metrics["pi"],
+                report_start_date,
+                report_end_date,
+                "NA",
+                "NA",
+                SU_A10_GPU,
+                str(metrics["SU_A10_GPU_HOURS"]),
+            ]
             rows.append(row)
 
-        if metrics['SU_MOC_GPU_HOURS'] != 0:
-            row = [namespace, metrics['pi'], report_start_date, report_end_date, 'NA', 'NA' , SU_MOC_GPU, str(metrics['SU_MOC_GPU_HOURS'])]
+        if metrics["SU_MOC_GPU_HOURS"] != 0:
+            row = [
+                namespace,
+                metrics["pi"],
+                report_start_date,
+                report_end_date,
+                "NA",
+                "NA",
+                SU_MOC_GPU,
+                str(metrics["SU_MOC_GPU_HOURS"]),
+            ]
             rows.append(row)
 
     csv_writer(rows, file_name)
+
 
 def write_metrics_by_pod(metrics_dict, file_name):
     """
@@ -291,39 +343,45 @@ def write_metrics_by_pod(metrics_dict, file_name):
     rows = []
     namespace_annotations = get_namespace_annotations()
     headers = [
-                "Namespace",
-                "Coldfront_PI Name",
-                "Coldfront Project ID ",
-                "Pod Start Time",
-                "Pod End Time",
-                "Duration (Hours)",
-                "Pod Name",
-                "CPU Request",
-                "GPU Request",
-                "GPU Type",
-                "Memory Request (GiB)",
-                "Determining Resource",
-                "SU Type",
-                "SU Count",
-            ]
+        "Namespace",
+        "Coldfront_PI Name",
+        "Coldfront Project ID ",
+        "Pod Start Time",
+        "Pod End Time",
+        "Duration (Hours)",
+        "Pod Name",
+        "CPU Request",
+        "GPU Request",
+        "GPU Type",
+        "Memory Request (GiB)",
+        "Determining Resource",
+        "SU Type",
+        "SU Count",
+    ]
     rows.append(headers)
 
     for pod, pod_dict in metrics_dict.items():
-        namespace = pod_dict['namespace']
-        pod_metrics_dict = pod_dict['metrics']
-        gpu_type = pod_dict['gpu_type']
+        namespace = pod_dict["namespace"]
+        pod_metrics_dict = pod_dict["metrics"]
+        gpu_type = pod_dict["gpu_type"]
         namespace_annotation_dict = namespace_annotations.get(namespace, {})
-        cf_pi = namespace_annotation_dict.get('cf_pi', namespace)
-        cf_project_id = namespace_annotation_dict.get('cf_project_id', 1)
+        cf_pi = namespace_annotation_dict.get("cf_pi", namespace)
+        cf_project_id = namespace_annotation_dict.get("cf_project_id", 1)
 
         for epoch_time, pod_metric_dict in pod_metrics_dict.items():
-            start_time = datetime.datetime.fromtimestamp(float(epoch_time)).strftime("%Y-%m-%dT%H:%M:%S")
-            end_time = datetime.datetime.fromtimestamp(float(epoch_time + pod_metric_dict['duration'])).strftime("%Y-%m-%dT%H:%M:%S")
-            duration = round(float(pod_metric_dict['duration']) / 3600, 4)
-            cpu_request = pod_metric_dict.get('cpu_request', 0)
-            gpu_request = pod_metric_dict.get('gpu_request', 0)
-            memory_request = round(float(pod_metric_dict.get('memory_request', 0)) / 2**30, 4)
-            su_type, su_count, determining_resource = get_service_unit(float(cpu_request), memory_request, float(gpu_request), gpu_type)
+            start_time = datetime.datetime.fromtimestamp(float(epoch_time)).strftime(
+                "%Y-%m-%dT%H:%M:%S"
+            )
+            end_time = datetime.datetime.fromtimestamp(
+                float(epoch_time + pod_metric_dict["duration"])
+            ).strftime("%Y-%m-%dT%H:%M:%S")
+            duration = round(float(pod_metric_dict["duration"]) / 3600, 4)
+            cpu_request = pod_metric_dict.get("cpu_request", 0)
+            gpu_request = pod_metric_dict.get("gpu_request", 0)
+            memory_request = round(float(pod_metric_dict.get("memory_request", 0)) / 2**30, 4)
+            su_type, su_count, determining_resource = get_service_unit(
+                float(cpu_request), memory_request, float(gpu_request), gpu_type
+            )
 
             info_list = [
                 namespace,
@@ -340,7 +398,7 @@ def write_metrics_by_pod(metrics_dict, file_name):
                 determining_resource,
                 su_type,
                 su_count,
-                ]
+            ]
 
             rows.append(info_list)
 
