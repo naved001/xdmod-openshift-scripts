@@ -36,6 +36,8 @@ SU_MOC_GPU = "SU_MOC_GPU"
 SU_UNKNOWN_GPU = "SU_UNKNOWN_GPU"
 SU_UNKNOWN = "SU_UNKNOWN"
 
+STEP_MIN = 15
+
 
 class EmptyResultError(Exception):
     """Raise when no results are retrieved for a query"""
@@ -48,7 +50,7 @@ def query_metric(openshift_url, token, metric, report_start_date, report_end_dat
     day_url_vars = f"start={report_start_date}T00:00:00Z&end={report_end_date}T23:59:59Z"
     print(f"Retrieving metric: {metric}")
     for _ in range(3):
-        url = f"{openshift_url}/api/v1/query_range?query={metric}&{day_url_vars}&step=60s"
+        url = f"{openshift_url}/api/v1/query_range?query={metric}&{day_url_vars}&step={STEP_MIN}m"
         response = requests.get(url, headers=headers, verify=True)
         if response.status_code != 200:
             print(f"{response.status_code} Response: {response.reason}")
@@ -179,7 +181,7 @@ def condense_metrics(input_metrics_dict, metrics_to_check):
                 new_metrics_dict[start_epoch_time] = start_metric_dict
                 start_epoch_time = epoch_time
                 start_metric_dict = metrics_dict[start_epoch_time].copy()
-        duration = epoch_time - start_epoch_time + 59
+        duration = epoch_time - start_epoch_time + (STEP_MIN * 60) - 1
         start_metric_dict["duration"] = duration
         new_metrics_dict[start_epoch_time] = start_metric_dict
 
