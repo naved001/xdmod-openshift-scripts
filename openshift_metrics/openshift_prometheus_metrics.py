@@ -50,27 +50,23 @@ def main():
     if not args.openshift_url:
         sys.exit("Must specify --openshift-url or set OPENSHIFT_PROMETHEUS_URL in your environment")
     openshift_url = args.openshift_url
-    report_date = args.report_date
     report_length = int(args.report_length)
-    if args.output_file:
-        output_file = args.output_file
-    else:
-        output_file = f"{report_date}.json"
 
-    print(f"Generating report for {report_date} in {output_file}")
-
-    token = openshift.get_auth_token()
-
-    metrics_dict = {}
-
-    report_end_date = report_date
+    report_end_date = args.report_date
     report_start_date = (
         datetime.datetime.strptime(report_end_date, "%Y-%m-%d")
         - datetime.timedelta(days=report_length - 1)
     ).strftime("%Y-%m-%d")
 
-    print(report_start_date)
-    print(report_end_date)
+    if args.output_file:
+        output_file = args.output_file
+    else:
+        output_file = f"metrics-{report_start_date}-to-{report_end_date}.json"
+
+    print(f"Generating report starting {report_start_date} and ending {report_end_date} in {output_file}")
+
+    token = openshift.get_auth_token()
+    metrics_dict = {}
     metrics_dict["start_date"] = report_start_date
     metrics_dict["end_date"] = report_end_date
 
@@ -92,7 +88,7 @@ def main():
     except utils.EmptyResultError:
         pass
 
-    with open("metrics-" + output_file, "w") as file:
+    with open(output_file, "w") as file:
         json.dump(metrics_dict, file)
 
 
