@@ -42,7 +42,7 @@ def main():
             if report_start_date is None:
                 report_start_date = metrics_from_file["start_date"]
             elif compare_dates(metrics_from_file["start_date"], report_start_date):
-                report_start_date = metrics_from_file
+                report_start_date = metrics_from_file["start_date"]
 
             if report_end_date is None:
                 report_end_date = metrics_from_file["end_date"]
