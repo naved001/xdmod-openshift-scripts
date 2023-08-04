@@ -14,7 +14,7 @@
 """Collect and save metrics from prometheus"""
 
 import argparse
-import datetime
+from datetime import datetime
 import os
 import sys
 import json
@@ -39,24 +39,27 @@ def main():
         default=os.getenv("OPENSHIFT_PROMETHEUS_URL"),
     )
     parser.add_argument(
-        "--report-date",
+        "--report-start-date",
         help="report date (ex: 2022-03-14)",
-        default=(datetime.datetime.today()).strftime("%Y-%m-%d"),
+        default=(datetime.today()).strftime("%Y-%m-%d"),
     )
-    parser.add_argument("--report-length", help="length of report in days", default=15)
+    parser.add_argument(
+        "--report-end-date",
+        help="report date (ex: 2022-03-14)",
+        default=(datetime.today()).strftime("%Y-%m-%d"),
+    )
     parser.add_argument("--output-file")
 
     args = parser.parse_args()
     if not args.openshift_url:
         sys.exit("Must specify --openshift-url or set OPENSHIFT_PROMETHEUS_URL in your environment")
     openshift_url = args.openshift_url
-    report_length = int(args.report_length)
 
-    report_end_date = args.report_date
-    report_start_date = (
-        datetime.datetime.strptime(report_end_date, "%Y-%m-%d")
-        - datetime.timedelta(days=report_length - 1)
-    ).strftime("%Y-%m-%d")
+    report_start_date = args.report_start_date
+    report_end_date = args.report_end_date
+
+    report_length = (datetime.strptime(report_end_date, "%Y-%m-%d") - datetime.strptime(report_start_date, "%Y-%m-%d"))
+    assert report_length.days >= 0, "report_start_date cannot be after report_end_date"
 
     if args.output_file:
         output_file = args.output_file

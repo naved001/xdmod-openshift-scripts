@@ -3,7 +3,7 @@ Merges metrics from files and produces reports by pod and by namespace
 """
 
 import argparse
-import datetime
+from datetime import datetime
 import json
 
 import utils
@@ -11,8 +11,8 @@ import utils
 
 def compare_dates(date_str1, date_str2):
     """Returns true is date1 is earlier than date2"""
-    date1 = datetime.datetime.strptime(date_str1, "%Y-%m-%d")
-    date2 = datetime.datetime.strptime(date_str2, "%Y-%m-%d")
+    date1 = datetime.strptime(date_str1, "%Y-%m-%d")
+    date2 = datetime.strptime(date_str2, "%Y-%m-%d")
     return date1 < date2
 
 
@@ -23,7 +23,7 @@ def main():
     args = parser.parse_args()
     files = args.files
     merged_dictionary = {}
-    output_file = f"{datetime.datetime.today().strftime('%Y-%m-%d')}.log"
+    output_file = f"{datetime.today().strftime('%Y-%m-%d')}.log"
 
     report_start_date = None
     report_end_date = None
