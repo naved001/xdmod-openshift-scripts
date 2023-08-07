@@ -181,7 +181,7 @@ def condense_metrics(input_metrics_dict, metrics_to_check):
                 new_metrics_dict[start_epoch_time] = start_metric_dict
                 start_epoch_time = epoch_time
                 start_metric_dict = metrics_dict[start_epoch_time].copy()
-        duration = epoch_time - start_epoch_time + (STEP_MIN * 60) - 1
+        duration = epoch_time - start_epoch_time + (STEP_MIN * 60)
         start_metric_dict["duration"] = duration
         new_metrics_dict[start_epoch_time] = start_metric_dict
 
