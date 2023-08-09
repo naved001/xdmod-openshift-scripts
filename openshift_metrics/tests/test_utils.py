@@ -401,7 +401,7 @@ class TestCondenseMetrics(TestCase):
         condensed_dict = utils.condense_metrics(test_input_dict,['cpu','mem'])
         self.assertEqual(condensed_dict, expected_condensed_dict)
 
-class TestWriteMetricsLog(TestCase):
+class TestWriteMetricsByPod(TestCase):
 
     @mock.patch('openshift_metrics.utils.get_namespace_annotations')
     def test_write_metrics_log(self, mock_gna):
@@ -418,66 +418,64 @@ class TestWriteMetricsLog(TestCase):
         test_metrics_dict = {
             "pod1": {
                 "namespace": "namespace1",
+                "gpu_type": utils.NO_GPU,
                 "metrics": {
                     0: {
-                        "cpu": 10,
-                        "allocated_cpu": 20,
-                        "allocated_memory": 1048576,
-                        "duration": 119
+                        "cpu_request": 10,
+                        "memory_request": 1048576,
+                        "duration": 120
                     },
                     120: {
-                        "cpu": 20,
-                        "allocated_cpu": 20,
-                        "allocated_memory": 1048576,
-                        "duration": 59
+                        "cpu_request": 20,
+                        "memory_request": 1048576,
+                        "duration": 60
                     }
                 }
             },
             "pod2": {
                 "namespace": "namespace1",
+                "gpu_type": utils.NO_GPU,
                 "metrics": {
                     0: {
-                        "cpu": 20,
-                        "allocated_cpu": 30,
-                        "allocated_memory": 10485760,
-                        "duration": 59
+                        "cpu_request": 20,
+                        "memory_request": 10485760,
+                        "duration": 60
                     },
                     60: {
-                        "cpu": 25,
-                        "allocated_cpu": 30,
-                        "allocated_memory": 10485760,
-                        "duration": 59
+                        "cpu_request": 25,
+                        "memory_request": 10485760,
+                        "duration": 60
                     },
                     120: {
-                        "cpu": 20,
-                        "allocated_cpu": 30,
-                        "allocated_memory": 10485760,
-                        "duration": 59
+                        "cpu_request": 20,
+                        "memory_request": 10485760,
+                        "duration": 60
                     }
                 }
             },
             "pod3": {
                 "namespace": "namespace2",
+                "gpu_type": utils.NO_GPU,
                 "metrics": {
                     0: {
-                        "cpu": 45,
-                        "allocated_cpu": 50,
-                        "allocated_memory": 104857600,
-                        "duration": 179
+                        "cpu_request": 45,
+                        "memory_request": 104857600,
+                        "duration": 180
                     },
                 }
             },
         }
 
-        expected_output = ("0|0|test_cluster_name|||namespace1|PI1|123|PI1|123|1969-12-31T19:00:00|1969-12-31T19:00:00|1969-12-31T19:00:00|1969-12-31T19:01:59|0-0:01:59||COMPLETED|1|10|20|1.0|cpu=20,mem=1.0|cpu=20,mem=1.0|0-0:01:59||pod1\n"
-                           "1|1|test_cluster_name|||namespace1|PI1|123|PI1|123|1969-12-31T19:02:00|1969-12-31T19:02:00|1969-12-31T19:02:00|1969-12-31T19:02:59|0-0:00:59||COMPLETED|1|20|20|1.0|cpu=20,mem=1.0|cpu=20,mem=1.0|0-0:00:59||pod1\n"
-                           "2|2|test_cluster_name|||namespace1|PI1|123|PI1|123|1969-12-31T19:00:00|1969-12-31T19:00:00|1969-12-31T19:00:00|1969-12-31T19:00:59|0-0:00:59||COMPLETED|1|20|30|10.0|cpu=30,mem=10.0|cpu=30,mem=10.0|0-0:00:59||pod2\n"
-                           "3|3|test_cluster_name|||namespace1|PI1|123|PI1|123|1969-12-31T19:01:00|1969-12-31T19:01:00|1969-12-31T19:01:00|1969-12-31T19:01:59|0-0:00:59||COMPLETED|1|25|30|10.0|cpu=30,mem=10.0|cpu=30,mem=10.0|0-0:00:59||pod2\n"
-                           "4|4|test_cluster_name|||namespace1|PI1|123|PI1|123|1969-12-31T19:02:00|1969-12-31T19:02:00|1969-12-31T19:02:00|1969-12-31T19:02:59|0-0:00:59||COMPLETED|1|20|30|10.0|cpu=30,mem=10.0|cpu=30,mem=10.0|0-0:00:59||pod2\n"
-                           "5|5|test_cluster_name|||namespace2|PI2|456|PI2|456|1969-12-31T19:00:00|1969-12-31T19:00:00|1969-12-31T19:00:00|1969-12-31T19:02:59|0-0:02:59||COMPLETED|1|45|50|100.0|cpu=50,mem=100.0|cpu=50,mem=100.0|0-0:02:59||pod3\n")
+        expected_output = ("Namespace,Coldfront_PI Name,Coldfront Project ID ,Pod Start Time,Pod End Time,Duration (Hours),Pod Name,CPU Request,GPU Request,GPU Type,Memory Request (GiB),Determining Resource,SU Type,SU Count\n"
+                           "namespace1,PI1,123,1969-12-31T19:00:00,1969-12-31T19:02:00,0.0333,pod1,10,0,No GPU,0.001,CPU,SU_CPU,10\n"
+                           "namespace1,PI1,123,1969-12-31T19:02:00,1969-12-31T19:03:00,0.0167,pod1,20,0,No GPU,0.001,CPU,SU_CPU,20\n"
+                           "namespace1,PI1,123,1969-12-31T19:00:00,1969-12-31T19:01:00,0.0167,pod2,20,0,No GPU,0.0098,CPU,SU_CPU,20\n"
+                           "namespace1,PI1,123,1969-12-31T19:01:00,1969-12-31T19:02:00,0.0167,pod2,25,0,No GPU,0.0098,CPU,SU_CPU,25\n"
+                           "namespace1,PI1,123,1969-12-31T19:02:00,1969-12-31T19:03:00,0.0167,pod2,20,0,No GPU,0.0098,CPU,SU_CPU,20\n"
+                           "namespace2,PI2,456,1969-12-31T19:00:00,1969-12-31T19:03:00,0.05,pod3,45,0,No GPU,0.0977,CPU,SU_CPU,45\n")
 
         tmp_file_name = "%s/test-metrics-%s.log" % (tempfile.gettempdir(), time.time())
-        utils.write_metrics_log(test_metrics_dict, tmp_file_name, 'test_cluster_name')
+        utils.write_metrics_by_pod(test_metrics_dict, tmp_file_name)
         f = open(tmp_file_name, "r")
         self.assertEqual(f.read(), expected_output)
         f.close()
