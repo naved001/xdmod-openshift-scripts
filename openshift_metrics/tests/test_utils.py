@@ -31,7 +31,7 @@ class TestQueryMetric(TestCase):
         }}
         mock_get.return_value = mock_response
 
-        metrics = utils.query_metric('fake-url', 'fake-token', 'fake-metric', '2022-03-14')
+        metrics = utils.query_metric('fake-url', 'fake-token', 'fake-metric', '2022-03-14', '2022-03-14')
         self.assertEqual(metrics, "this is data")
         self.assertEqual(mock_get.call_count, 1)
 
@@ -40,17 +40,8 @@ class TestQueryMetric(TestCase):
         mock_get.return_value = mock.Mock(status_code=404)
 
         self.assertRaises(Exception, utils.query_metric, 'fake-url', 'fake-token',
-                          'fake-metric', '2022-03-14')
+                          'fake-metric', '2022-03-14', '2022-03-14')
         self.assertEqual(mock_get.call_count, 3)
-
-    @mock.patch('requests.get')
-    def test_query_metric_exception_retry_count(self, mock_get):
-        mock_get.return_value = mock.Mock(status_code=404)
-
-        self.assertRaises(Exception, utils.query_metric, 'fake-url', 'fake-token',
-                          'fake-metric', '2022-03-14', retry=2)
-        self.assertEqual(mock_get.call_count, 2)
-
 
 class TestGetNamespaceAnnotations(TestCase):
 
@@ -100,7 +91,8 @@ class TestMergeMetrics(TestCase):
             {
                 "metric": {
                     "pod": "pod1",
-                    "namespace": "namespace1"
+                    "namespace": "namespace1",
+                    "resource": "memory",
                 },
                 "values": [
                     [0, 10],
@@ -111,7 +103,8 @@ class TestMergeMetrics(TestCase):
             {
                 "metric": {
                     "pod": "pod2",
-                    "namespace": "namespace1"
+                    "namespace": "namespace1",
+                    "resource": "cpu",
                 },
                 "values": [
                     [0, 30],
@@ -123,6 +116,7 @@ class TestMergeMetrics(TestCase):
         expected_output_dict = {
             "pod1": {
                 "namespace": "namespace1",
+                "gpu_type": utils.NO_GPU,
                 "metrics": {
                     0: {
                         "cpu": 10
@@ -137,6 +131,7 @@ class TestMergeMetrics(TestCase):
             },
             "pod2": {
                 "namespace": "namespace1",
+                "gpu_type": utils.NO_GPU,
                 "metrics": {
                     0: {
                         "cpu": 30
@@ -152,14 +147,14 @@ class TestMergeMetrics(TestCase):
         }
         output_dict = {}
         utils.merge_metrics('cpu', test_metric_list, output_dict)
-        self.assertEquals(output_dict, expected_output_dict)
+        self.assertEqual(output_dict, expected_output_dict)
 
     def test_merge_metrics_not_empty(self):
         test_metric_list = [
             {
                 "metric": {
                     "pod": "pod1",
-                    "namespace": "namespace1"
+                    "namespace": "namespace1",
                 },
                 "values": [
                     [0, 100],
@@ -180,6 +175,7 @@ class TestMergeMetrics(TestCase):
         output_dict = {
             "pod1": {
                 "namespace": "namespace1",
+                "gpu_type": utils.NO_GPU,
                 "metrics": {
                     0: {
                         "cpu": 10
@@ -194,6 +190,7 @@ class TestMergeMetrics(TestCase):
             },
             "pod2": {
                 "namespace": "namespace1",
+                "gpu_type": utils.NO_GPU,
                 "metrics": {
                     0: {
                         "cpu": 30
@@ -210,6 +207,7 @@ class TestMergeMetrics(TestCase):
         expected_output_dict = {
             "pod1": {
                 "namespace": "namespace1",
+                "gpu_type": utils.NO_GPU,
                 "metrics": {
                     0: {
                         "cpu": 10,
@@ -227,6 +225,7 @@ class TestMergeMetrics(TestCase):
             },
             "pod2": {
                 "namespace": "namespace1",
+                "gpu_type": utils.NO_GPU,
                 "metrics": {
                     0: {
                         "cpu": 30

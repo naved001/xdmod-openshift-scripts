@@ -142,7 +142,7 @@ def merge_metrics(metric_name, metric_list, output_dict):
         if pod not in output_dict:
             output_dict[pod] = {"namespace": metric["metric"]["namespace"], "metrics": {}}
 
-        gpu_type = metric["metric"]["resource"]
+        gpu_type = metric["metric"].get("resource", NO_GPU)
         if gpu_type not in ["cpu", "memory"]:
             output_dict[pod]["gpu_type"] = gpu_type
         else:
