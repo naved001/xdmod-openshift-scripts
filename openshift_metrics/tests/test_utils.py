@@ -81,7 +81,7 @@ class TestGetNamespaceAnnotations(TestCase):
                 'anno4': 'value4'
             }
         }
-        self.assertEquals(namespaces_dict, expected_namespaces_dict)
+        self.assertEqual(namespaces_dict, expected_namespaces_dict)
 
 
 class TestMergeMetrics(TestCase):
@@ -241,7 +241,7 @@ class TestMergeMetrics(TestCase):
             }
         }
         utils.merge_metrics('mem', test_metric_list, output_dict)
-        self.assertEquals(output_dict, expected_output_dict)
+        self.assertEqual(output_dict, expected_output_dict)
 
 
 class TestCondenseMetrics(TestCase):
@@ -294,7 +294,7 @@ class TestCondenseMetrics(TestCase):
             },
         }
         condensed_dict = utils.condense_metrics(test_input_dict,['cpu','mem'])
-        self.assertEquals(condensed_dict, expected_condensed_dict)
+        self.assertEqual(condensed_dict, expected_condensed_dict)
 
 
     def test_condense_metrics_no_interval(self):
@@ -320,7 +320,7 @@ class TestCondenseMetrics(TestCase):
             },
         }
         condensed_dict = utils.condense_metrics(test_input_dict,['cpu','mem'])
-        self.assertEquals(condensed_dict, expected_condensed_dict)
+        self.assertEqual(condensed_dict, expected_condensed_dict)
 
     def test_condense_metrics_with_change(self):
         test_input_dict = {
@@ -367,7 +367,7 @@ class TestCondenseMetrics(TestCase):
             },
         }
         condensed_dict = utils.condense_metrics(test_input_dict,['cpu','mem'])
-        self.assertEquals(condensed_dict, expected_condensed_dict)
+        self.assertEqual(condensed_dict, expected_condensed_dict)
 
     def test_condense_metrics_skip_metric(self):
         test_input_dict = {
@@ -399,7 +399,7 @@ class TestCondenseMetrics(TestCase):
             },
         }
         condensed_dict = utils.condense_metrics(test_input_dict,['cpu','mem'])
-        self.assertEquals(condensed_dict, expected_condensed_dict)
+        self.assertEqual(condensed_dict, expected_condensed_dict)
 
 class TestWriteMetricsLog(TestCase):
 
@@ -479,5 +479,5 @@ class TestWriteMetricsLog(TestCase):
         tmp_file_name = "%s/test-metrics-%s.log" % (tempfile.gettempdir(), time.time())
         utils.write_metrics_log(test_metrics_dict, tmp_file_name, 'test_cluster_name')
         f = open(tmp_file_name, "r")
-        self.assertEquals(f.read(), expected_output)
+        self.assertEqual(f.read(), expected_output)
         f.close()
