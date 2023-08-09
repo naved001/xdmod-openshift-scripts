@@ -11,64 +11,89 @@
 #   under the License.
 #
 
+"""Collect and save metrics from prometheus"""
+
 import argparse
-import datetime
+from datetime import datetime
 import os
 import sys
+import json
 
 import openshift
 
 import utils
 
 
-CPU_METRIC = 'kube_pod_resource_request{unit="cores"}'
-ALLOCATED_CPU_METRIC = 'kube_pod_resource_limit{unit="cores"}'
-ALLOCATED_MEMORY_METRIC = 'kube_pod_resource_limit{unit="bytes"}'
+CPU_REQUEST = 'kube_pod_resource_request{unit="cores"} unless on(pod, namespace) kube_pod_status_unschedulable'
+MEMORY_REQUEST = 'kube_pod_resource_request{unit="bytes"} unless on(pod, namespace) kube_pod_status_unschedulable'
+GPU_REQUEST = 'kube_pod_resource_request{resource=~".*gpu.*"} unless on(pod, namespace) kube_pod_status_unschedulable'
+
 
 def main():
+    """This method kick starts the process of collecting and saving the metrics"""
+
     parser = argparse.ArgumentParser()
-    parser.add_argument("--openshift-url", help="OpenShift Prometheus URL",
-                        default=os.getenv('OPENSHIFT_PROMETHEUS_URL'))
-    parser.add_argument("--openshift-cluster-name", help="OpenShift cluster name",
-                        default=os.getenv('OPENSHIFT_CLUSTER_NAME'))
-    parser.add_argument("--report-date", help="report date (ex: 2022-03-14)",
-                        default=(datetime.datetime.today() - datetime.timedelta(days=1)).strftime('%Y-%m-%d'))
-    parser.add_argument("--disable-ssl",
-                        default=os.getenv('OPENSHIFT_DISABLE_SSL', False))
+    parser.add_argument(
+        "--openshift-url",
+        help="OpenShift Prometheus URL",
+        default=os.getenv("OPENSHIFT_PROMETHEUS_URL"),
+    )
+    parser.add_argument(
+        "--report-start-date",
+        help="report date (ex: 2022-03-14)",
+        default=(datetime.today()).strftime("%Y-%m-%d"),
+    )
+    parser.add_argument(
+        "--report-end-date",
+        help="report date (ex: 2022-03-14)",
+        default=(datetime.today()).strftime("%Y-%m-%d"),
+    )
     parser.add_argument("--output-file")
 
     args = parser.parse_args()
     if not args.openshift_url:
-        sys.exit('Must specify --openshift-url or set OPENSHIFT_PROMETHEUS_URL in your environment')
-    if not args.openshift_cluster_name:
-        sys.exit('Must specify --openshift-cluster-name or set OPENSHIFT_CLUSTER_NAME in your environment')
+        sys.exit("Must specify --openshift-url or set OPENSHIFT_PROMETHEUS_URL in your environment")
     openshift_url = args.openshift_url
-    openshift_cluster_name = args.openshift_cluster_name
-    report_date = args.report_date
-    disable_ssl = args.disable_ssl
+
+    report_start_date = args.report_start_date
+    report_end_date = args.report_end_date
+
+    report_length = (datetime.strptime(report_end_date, "%Y-%m-%d") - datetime.strptime(report_start_date, "%Y-%m-%d"))
+    assert report_length.days >= 0, "report_start_date cannot be after report_end_date"
+
     if args.output_file:
         output_file = args.output_file
     else:
-        output_file = "%s.log" % report_date
+        output_file = f"metrics-{report_start_date}-to-{report_end_date}.json"
 
-    print("Generating report for %s in %s" % (report_date, output_file))
+    print(f"Generating report starting {report_start_date} and ending {report_end_date} in {output_file}")
 
     token = openshift.get_auth_token()
-
-    cpu_metrics = utils.query_metric(openshift_url, token, CPU_METRIC, report_date, disable_ssl)
-    allocated_cpu_metrics = utils.query_metric(
-        openshift_url, token, ALLOCATED_CPU_METRIC, report_date, disable_ssl)
-    allocated_memory_metrics = utils.query_metric(
-        openshift_url, token, ALLOCATED_MEMORY_METRIC, report_date, disable_ssl)
-
     metrics_dict = {}
-    utils.merge_metrics('cpu', cpu_metrics, metrics_dict)
-    utils.merge_metrics('allocated_cpu', allocated_cpu_metrics, metrics_dict)
-    utils.merge_metrics('allocated_memory', allocated_memory_metrics, metrics_dict)
-    condensed_metrics_dict = utils.condense_metrics(
-        metrics_dict, ['cpu', 'allocated_cpu', 'memory'])
+    metrics_dict["start_date"] = report_start_date
+    metrics_dict["end_date"] = report_end_date
 
-    utils.write_metrics_log(condensed_metrics_dict, output_file, openshift_cluster_name)
+    cpu_request_metrics = utils.query_metric(
+        openshift_url, token, CPU_REQUEST, report_start_date, report_end_date
+    )
+    memory_request_metrics = utils.query_metric(
+        openshift_url, token, MEMORY_REQUEST, report_start_date, report_end_date
+    )
+    metrics_dict["cpu_metrics"] = cpu_request_metrics
+    metrics_dict["memory_metrics"] = memory_request_metrics
 
-if __name__ == '__main__':
+    # because if nobody requests a GPU then we will get an empty set
+    try:
+        gpu_request_metrics = utils.query_metric(
+            openshift_url, token, GPU_REQUEST, report_start_date, report_end_date
+        )
+        metrics_dict["gpu_metrics"] = gpu_request_metrics
+    except utils.EmptyResultError:
+        pass
+
+    with open(output_file, "w") as file:
+        json.dump(metrics_dict, file)
+
+
+if __name__ == "__main__":
     main()

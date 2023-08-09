@@ -1,0 +1,6 @@
+venv/
+*.log
+openshift_metrics/__pycache__/
+*.xlsx
+*.json
+
