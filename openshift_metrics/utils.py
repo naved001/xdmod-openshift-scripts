@@ -168,6 +168,14 @@ def condense_metrics(input_metrics_dict, metrics_to_check):
         epoch_times_list = sorted(metrics_dict.keys())
 
         start_epoch_time = epoch_times_list[0]
+
+        # calculate the interval if we have more than 1 measurement, otherwise
+        # use the STEP_MIN from the query as best guess
+        if len(epoch_times_list) > 1:
+            interval = epoch_times_list[1] - epoch_times_list[0]
+        else:
+            interval = STEP_MIN * 60
+
         start_metric_dict = metrics_dict[start_epoch_time].copy()
         for epoch_time in epoch_times_list:
             same_metrics = True
@@ -176,12 +184,12 @@ def condense_metrics(input_metrics_dict, metrics_to_check):
                     same_metrics = False
 
             if not same_metrics:
-                duration = epoch_time - start_epoch_time - 1
+                duration = epoch_time - start_epoch_time
                 start_metric_dict["duration"] = duration
                 new_metrics_dict[start_epoch_time] = start_metric_dict
                 start_epoch_time = epoch_time
                 start_metric_dict = metrics_dict[start_epoch_time].copy()
-        duration = epoch_time - start_epoch_time + (STEP_MIN * 60)
+        duration = epoch_time - start_epoch_time + interval
         start_metric_dict["duration"] = duration
         new_metrics_dict[start_epoch_time] = start_metric_dict
 

@@ -261,6 +261,18 @@ class TestCondenseMetrics(TestCase):
                     }
                 }
             },
+            "pod2": {
+                "metrics": {
+                    0: {
+                        "cpu": 2,
+                        "mem": 256,
+                    },
+                    100: {
+                        "cpu": 2,
+                        "mem": 256,
+                    }
+                }
+            },
         }
         expected_condensed_dict = {
             "pod1": {
@@ -268,7 +280,42 @@ class TestCondenseMetrics(TestCase):
                     0: {
                         "cpu": 10,
                         "mem": 15,
-                        "duration": 119
+                        "duration": 120
+                    }
+                }
+            },
+            "pod2": {
+                "metrics": {
+                    0: {
+                        "cpu": 2,
+                        "mem": 256,
+                        "duration": 200
+                    }
+                }
+            },
+        }
+        condensed_dict = utils.condense_metrics(test_input_dict,['cpu','mem'])
+        self.assertEquals(condensed_dict, expected_condensed_dict)
+
+
+    def test_condense_metrics_no_interval(self):
+        test_input_dict = {
+            "pod1": {
+                "metrics": {
+                    0: {
+                        "cpu": 10,
+                        "mem": 15,
+                    }
+                }
+            },
+        }
+        expected_condensed_dict = {
+            "pod1": {
+                "metrics": {
+                    0: {
+                        "cpu": 10,
+                        "mem": 15,
+                        "duration": 900
                     }
                 }
             },
@@ -305,17 +352,17 @@ class TestCondenseMetrics(TestCase):
                     0: {
                         "cpu": 20,
                         "mem": 25,
-                        "duration": 119
+                        "duration": 120
                     },
                     120: {
                         "cpu": 25,
                         "mem": 25,
-                        "duration": 59
+                        "duration": 60
                     },
                     180: {
                         "cpu": 20,
                         "mem": 25,
-                        "duration": 59
+                        "duration": 60
                     }
                 }
             },
@@ -347,7 +394,7 @@ class TestCondenseMetrics(TestCase):
                         "cpu": 30,
                         "mem": 35,
                         "gpu": 1,
-                        "duration": 119
+                        "duration": 120
                     }
                 }
             },
