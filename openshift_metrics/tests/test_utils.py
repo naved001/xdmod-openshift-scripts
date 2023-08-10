@@ -92,7 +92,7 @@ class TestMergeMetrics(TestCase):
                 "metric": {
                     "pod": "pod1",
                     "namespace": "namespace1",
-                    "resource": "memory",
+                    "resource": "cpu",
                 },
                 "values": [
                     [0, 10],
