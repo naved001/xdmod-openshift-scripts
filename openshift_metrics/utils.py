@@ -125,10 +125,10 @@ def get_service_unit(cpu_count, memory_count, gpu_count, gpu_type):
 
     su_count = math.ceil(max(cpu_multiplier, gpu_multiplier, memory_multiplier))
 
-    if cpu_multiplier >= gpu_multiplier and cpu_multiplier >= memory_multiplier:
-        determining_resource = "CPU"
-    elif gpu_multiplier >= cpu_multiplier and gpu_multiplier >= memory_multiplier:
+    if gpu_multiplier >= cpu_multiplier and gpu_multiplier >= memory_multiplier:
         determining_resource = "GPU"
+    elif cpu_multiplier >= gpu_multiplier and cpu_multiplier >= memory_multiplier:
+        determining_resource = "CPU"
     else:
         determining_resource = "RAM"
 

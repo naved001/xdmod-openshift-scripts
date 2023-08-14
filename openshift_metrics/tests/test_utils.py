@@ -575,3 +575,60 @@ class TestWriteMetricsByNamespace(TestCase):
         f = open(tmp_file_name, "r")
         self.assertEqual(f.read(), expected_output)
         f.close()
+
+
+class TestGetServiceUnit(TestCase):
+
+    def test_cpu_only(self):
+        su_type, su_count, determining_resource = utils.get_service_unit(4, 16, 0, None)
+        self.assertEqual(su_type, utils.SU_CPU)
+        self.assertEqual(su_count, 4)
+        self.assertEqual(determining_resource, "CPU")
+
+    def test_known_gpu(self):
+        su_type, su_count, determining_resource = utils.get_service_unit(24, 96, 1, utils.GPU_A100)
+        self.assertEqual(su_type, utils.SU_A100_GPU)
+        self.assertEqual(su_count, 1)
+        self.assertEqual(determining_resource, "GPU")
+
+    def test_known_gpu_high_cpu(self):
+        su_type, su_count, determining_resource = utils.get_service_unit(50, 96, 1, utils.GPU_A100)
+        self.assertEqual(su_type, utils.SU_A100_GPU)
+        self.assertEqual(su_count, 3)
+        self.assertEqual(determining_resource, "CPU")
+
+    def test_known_gpu_high_memory(self):
+        su_type, su_count, determining_resource = utils.get_service_unit(24, 100, 1, utils.GPU_A100)
+        self.assertEqual(su_type, utils.SU_A100_GPU)
+        self.assertEqual(su_count, 2)
+        self.assertEqual(determining_resource, "RAM")
+
+    def test_known_gpu_low_cpu_memory(self):
+        su_type, su_count, determining_resource = utils.get_service_unit(2, 4, 1, utils.GPU_A100)
+        self.assertEqual(su_type, utils.SU_A100_GPU)
+        self.assertEqual(su_count, 1)
+        self.assertEqual(determining_resource, "GPU")
+
+    def test_unknown_gpu(self):
+        su_type, su_count, determining_resource = utils.get_service_unit(8, 64, 1, "Unknown_GPU_Type")
+        self.assertEqual(su_type, utils.SU_UNKNOWN_GPU)
+        self.assertEqual(su_count, 1)
+        self.assertEqual(determining_resource, "GPU")
+
+    def test_zero_memory(self):
+        su_type, su_count, determining_resource = utils.get_service_unit(1, 0, 0, None)
+        self.assertEqual(su_type, utils.SU_UNKNOWN)
+        self.assertEqual(su_count, 0)
+        self.assertEqual(determining_resource, "CPU")
+
+    def test_zero_cpu(self):
+        su_type, su_count, determining_resource = utils.get_service_unit(0, 1, 0, None)
+        self.assertEqual(su_type, utils.SU_UNKNOWN)
+        self.assertEqual(su_count, 0)
+        self.assertEqual(determining_resource, "CPU")
+
+    def test_memory_dominant(self):
+        su_type, su_count, determining_resource = utils.get_service_unit(8, 64, 0, None)
+        self.assertEqual(su_type, utils.SU_CPU)
+        self.assertEqual(su_count, 16)
+        self.assertEqual(determining_resource, "RAM")
