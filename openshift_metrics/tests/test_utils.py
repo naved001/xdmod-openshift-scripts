@@ -479,3 +479,99 @@ class TestWriteMetricsByPod(TestCase):
         f = open(tmp_file_name, "r")
         self.assertEqual(f.read(), expected_output)
         f.close()
+
+class TestWriteMetricsByNamespace(TestCase):
+
+    @mock.patch('openshift_metrics.utils.get_namespace_annotations')
+    def test_write_metrics_log(self, mock_gna):
+        mock_gna.return_value = {
+            'namespace1': {
+                'cf_pi': 'PI1',
+                'cf_project_id': '123',
+            },
+            'namespace2': {
+                'cf_pi': 'PI2',
+                'cf_project_id': '456',
+            }
+        }
+        test_metrics_dict = {
+            "pod1": {
+                "namespace": "namespace1",
+                "gpu_type": utils.NO_GPU,
+                "metrics": {
+                    0: {
+                        "cpu_request": 2,
+                        "memory_request": 4 * 2**30,
+                        "duration": 43200
+                    },
+                    43200: {
+                        "cpu_request": 4,
+                        "memory_request": 4 * 2**30,
+                        "duration": 43200
+                    }
+                }
+            },
+            "pod2": {
+                "namespace": "namespace1",
+                "gpu_type": utils.NO_GPU,
+                "metrics": {
+                    0: {
+                        "cpu_request": 4,
+                        "memory_request": 1 * 2**30,
+                        "duration": 86400
+                    },
+                    86400: {
+                        "cpu_request": 20,
+                        "memory_request": 1 * 2**30,
+                        "duration": 172800
+                    }
+                }
+            },
+            "pod3": {
+                "namespace": "namespace2",
+                "gpu_type": utils.NO_GPU,
+                "metrics": {
+                    0: {
+                        "cpu_request": 1,
+                        "memory_request": 8 * 2**30,
+                        "duration": 172800
+                    },
+                }
+            },
+            "pod4": {
+                "namespace": "namespace2",
+                "gpu_type": utils.GPU_A100,
+                "metrics": {
+                    0: {
+                        "cpu_request": 1,
+                        "memory_request": 8 * 2**30,
+                        "gpu_request": 1,
+                        "duration": 172800
+                    },
+                }
+            },
+            "pod5": {
+                "namespace": "namespace2",
+                "gpu_type": utils.GPU_A10,
+                "metrics": {
+                    0: {
+                        "cpu_request": 24,
+                        "memory_request": 8 * 2**30,
+                        "gpu_request": 1,
+                        "duration": 172800
+                    },
+                }
+            },
+        }
+
+        expected_output = ("Namespace,Coldfront_PI Name,Report Start Date,Report End Date,_cpu_hours,_memory_hours,SU TYPE,SU Type Hours\n"
+                            "namespace1,PI1,01-01-2023,01-01-2023,1128.0,168.0,SU_CPU,1128\n"
+                            "namespace2,PI2,01-01-2023,01-01-2023,48.0,384.0,SU_CPU,96\n"
+                            "namespace2,PI2,01-01-2023,01-01-2023,NA,NA,SU_A100_GPU,48.0\n"
+                            "namespace2,PI2,01-01-2023,01-01-2023,NA,NA,SU_A10_GPU,144.0\n")
+
+        tmp_file_name = "%s/test-metrics-%s.log" % (tempfile.gettempdir(), time.time())
+        utils.write_metrics_by_namespace(test_metrics_dict, tmp_file_name, "01-01-2023", "01-01-2023")
+        f = open(tmp_file_name, "r")
+        self.assertEqual(f.read(), expected_output)
+        f.close()
