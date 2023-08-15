@@ -1,13 +1,12 @@
-# xdmod-openshift-scripts
+# openshift-usage-scripts
 
-xdmod-openshift-scripts contains a couple of scripts to pull metrics from Prometheus or Thanos
+openshift-usage-scripts contains a couple of scripts to pull metrics from Prometheus or Thanos
 and then merge the metrics to produce a CSV report by pods and by namespaces.
 
 The reports do the necessary maths to calcuate Service Unit hours. For non-GPU pods we sum up the CPU
 and Memory usage for each namespace and then calculate the SU hours on that. GPU pods are treated separately.
 
-
-At this point this repo has nothing to do with xdmod so I will move this into its own repo soon.
+This was a fork of https://github.com/OCP-on-NERC/xdmod-openshift-scripts
 
 ## Usage
 
