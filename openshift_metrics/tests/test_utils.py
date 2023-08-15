@@ -31,7 +31,7 @@ class TestQueryMetric(TestCase):
         }}
         mock_get.return_value = mock_response
 
-        metrics = utils.query_metric('fake-url', 'fake-token', 'fake-metric', '2022-03-14')
+        metrics = utils.query_metric('fake-url', 'fake-token', 'fake-metric', '2022-03-14', '2022-03-14')
         self.assertEqual(metrics, "this is data")
         self.assertEqual(mock_get.call_count, 1)
 
@@ -40,17 +40,8 @@ class TestQueryMetric(TestCase):
         mock_get.return_value = mock.Mock(status_code=404)
 
         self.assertRaises(Exception, utils.query_metric, 'fake-url', 'fake-token',
-                          'fake-metric', '2022-03-14')
+                          'fake-metric', '2022-03-14', '2022-03-14')
         self.assertEqual(mock_get.call_count, 3)
-
-    @mock.patch('requests.get')
-    def test_query_metric_exception_retry_count(self, mock_get):
-        mock_get.return_value = mock.Mock(status_code=404)
-
-        self.assertRaises(Exception, utils.query_metric, 'fake-url', 'fake-token',
-                          'fake-metric', '2022-03-14', retry=2)
-        self.assertEqual(mock_get.call_count, 2)
-
 
 class TestGetNamespaceAnnotations(TestCase):
 
@@ -90,7 +81,7 @@ class TestGetNamespaceAnnotations(TestCase):
                 'anno4': 'value4'
             }
         }
-        self.assertEquals(namespaces_dict, expected_namespaces_dict)
+        self.assertEqual(namespaces_dict, expected_namespaces_dict)
 
 
 class TestMergeMetrics(TestCase):
@@ -100,7 +91,8 @@ class TestMergeMetrics(TestCase):
             {
                 "metric": {
                     "pod": "pod1",
-                    "namespace": "namespace1"
+                    "namespace": "namespace1",
+                    "resource": "cpu",
                 },
                 "values": [
                     [0, 10],
@@ -111,7 +103,8 @@ class TestMergeMetrics(TestCase):
             {
                 "metric": {
                     "pod": "pod2",
-                    "namespace": "namespace1"
+                    "namespace": "namespace1",
+                    "resource": "cpu",
                 },
                 "values": [
                     [0, 30],
@@ -123,6 +116,7 @@ class TestMergeMetrics(TestCase):
         expected_output_dict = {
             "pod1": {
                 "namespace": "namespace1",
+                "gpu_type": utils.NO_GPU,
                 "metrics": {
                     0: {
                         "cpu": 10
@@ -137,6 +131,7 @@ class TestMergeMetrics(TestCase):
             },
             "pod2": {
                 "namespace": "namespace1",
+                "gpu_type": utils.NO_GPU,
                 "metrics": {
                     0: {
                         "cpu": 30
@@ -152,14 +147,14 @@ class TestMergeMetrics(TestCase):
         }
         output_dict = {}
         utils.merge_metrics('cpu', test_metric_list, output_dict)
-        self.assertEquals(output_dict, expected_output_dict)
+        self.assertEqual(output_dict, expected_output_dict)
 
     def test_merge_metrics_not_empty(self):
         test_metric_list = [
             {
                 "metric": {
                     "pod": "pod1",
-                    "namespace": "namespace1"
+                    "namespace": "namespace1",
                 },
                 "values": [
                     [0, 100],
@@ -180,6 +175,7 @@ class TestMergeMetrics(TestCase):
         output_dict = {
             "pod1": {
                 "namespace": "namespace1",
+                "gpu_type": utils.NO_GPU,
                 "metrics": {
                     0: {
                         "cpu": 10
@@ -194,6 +190,7 @@ class TestMergeMetrics(TestCase):
             },
             "pod2": {
                 "namespace": "namespace1",
+                "gpu_type": utils.NO_GPU,
                 "metrics": {
                     0: {
                         "cpu": 30
@@ -210,6 +207,7 @@ class TestMergeMetrics(TestCase):
         expected_output_dict = {
             "pod1": {
                 "namespace": "namespace1",
+                "gpu_type": utils.NO_GPU,
                 "metrics": {
                     0: {
                         "cpu": 10,
@@ -227,6 +225,7 @@ class TestMergeMetrics(TestCase):
             },
             "pod2": {
                 "namespace": "namespace1",
+                "gpu_type": utils.NO_GPU,
                 "metrics": {
                     0: {
                         "cpu": 30
@@ -242,7 +241,7 @@ class TestMergeMetrics(TestCase):
             }
         }
         utils.merge_metrics('mem', test_metric_list, output_dict)
-        self.assertEquals(output_dict, expected_output_dict)
+        self.assertEqual(output_dict, expected_output_dict)
 
 
 class TestCondenseMetrics(TestCase):
@@ -261,6 +260,18 @@ class TestCondenseMetrics(TestCase):
                     }
                 }
             },
+            "pod2": {
+                "metrics": {
+                    0: {
+                        "cpu": 2,
+                        "mem": 256,
+                    },
+                    100: {
+                        "cpu": 2,
+                        "mem": 256,
+                    }
+                }
+            },
         }
         expected_condensed_dict = {
             "pod1": {
@@ -268,13 +279,48 @@ class TestCondenseMetrics(TestCase):
                     0: {
                         "cpu": 10,
                         "mem": 15,
-                        "duration": 119
+                        "duration": 120
+                    }
+                }
+            },
+            "pod2": {
+                "metrics": {
+                    0: {
+                        "cpu": 2,
+                        "mem": 256,
+                        "duration": 200
                     }
                 }
             },
         }
         condensed_dict = utils.condense_metrics(test_input_dict,['cpu','mem'])
-        self.assertEquals(condensed_dict, expected_condensed_dict)
+        self.assertEqual(condensed_dict, expected_condensed_dict)
+
+
+    def test_condense_metrics_no_interval(self):
+        test_input_dict = {
+            "pod1": {
+                "metrics": {
+                    0: {
+                        "cpu": 10,
+                        "mem": 15,
+                    }
+                }
+            },
+        }
+        expected_condensed_dict = {
+            "pod1": {
+                "metrics": {
+                    0: {
+                        "cpu": 10,
+                        "mem": 15,
+                        "duration": 900
+                    }
+                }
+            },
+        }
+        condensed_dict = utils.condense_metrics(test_input_dict,['cpu','mem'])
+        self.assertEqual(condensed_dict, expected_condensed_dict)
 
     def test_condense_metrics_with_change(self):
         test_input_dict = {
@@ -305,23 +351,23 @@ class TestCondenseMetrics(TestCase):
                     0: {
                         "cpu": 20,
                         "mem": 25,
-                        "duration": 119
+                        "duration": 120
                     },
                     120: {
                         "cpu": 25,
                         "mem": 25,
-                        "duration": 59
+                        "duration": 60
                     },
                     180: {
                         "cpu": 20,
                         "mem": 25,
-                        "duration": 59
+                        "duration": 60
                     }
                 }
             },
         }
         condensed_dict = utils.condense_metrics(test_input_dict,['cpu','mem'])
-        self.assertEquals(condensed_dict, expected_condensed_dict)
+        self.assertEqual(condensed_dict, expected_condensed_dict)
 
     def test_condense_metrics_skip_metric(self):
         test_input_dict = {
@@ -347,15 +393,15 @@ class TestCondenseMetrics(TestCase):
                         "cpu": 30,
                         "mem": 35,
                         "gpu": 1,
-                        "duration": 119
+                        "duration": 120
                     }
                 }
             },
         }
         condensed_dict = utils.condense_metrics(test_input_dict,['cpu','mem'])
-        self.assertEquals(condensed_dict, expected_condensed_dict)
+        self.assertEqual(condensed_dict, expected_condensed_dict)
 
-class TestWriteMetricsLog(TestCase):
+class TestWriteMetricsByPod(TestCase):
 
     @mock.patch('openshift_metrics.utils.get_namespace_annotations')
     def test_write_metrics_log(self, mock_gna):
@@ -372,66 +418,217 @@ class TestWriteMetricsLog(TestCase):
         test_metrics_dict = {
             "pod1": {
                 "namespace": "namespace1",
+                "gpu_type": utils.NO_GPU,
                 "metrics": {
                     0: {
-                        "cpu": 10,
-                        "allocated_cpu": 20,
-                        "allocated_memory": 1048576,
-                        "duration": 119
+                        "cpu_request": 10,
+                        "memory_request": 1048576,
+                        "duration": 120
                     },
                     120: {
-                        "cpu": 20,
-                        "allocated_cpu": 20,
-                        "allocated_memory": 1048576,
-                        "duration": 59
+                        "cpu_request": 20,
+                        "memory_request": 1048576,
+                        "duration": 60
                     }
                 }
             },
             "pod2": {
                 "namespace": "namespace1",
+                "gpu_type": utils.NO_GPU,
                 "metrics": {
                     0: {
-                        "cpu": 20,
-                        "allocated_cpu": 30,
-                        "allocated_memory": 10485760,
-                        "duration": 59
+                        "cpu_request": 20,
+                        "memory_request": 10485760,
+                        "duration": 60
                     },
                     60: {
-                        "cpu": 25,
-                        "allocated_cpu": 30,
-                        "allocated_memory": 10485760,
-                        "duration": 59
+                        "cpu_request": 25,
+                        "memory_request": 10485760,
+                        "duration": 60
                     },
                     120: {
-                        "cpu": 20,
-                        "allocated_cpu": 30,
-                        "allocated_memory": 10485760,
-                        "duration": 59
+                        "cpu_request": 20,
+                        "memory_request": 10485760,
+                        "duration": 60
                     }
                 }
             },
             "pod3": {
                 "namespace": "namespace2",
+                "gpu_type": utils.NO_GPU,
                 "metrics": {
                     0: {
-                        "cpu": 45,
-                        "allocated_cpu": 50,
-                        "allocated_memory": 104857600,
-                        "duration": 179
+                        "cpu_request": 45,
+                        "memory_request": 104857600,
+                        "duration": 180
                     },
                 }
             },
         }
 
-        expected_output = ("0|0|test_cluster_name|||namespace1|PI1|123|PI1|123|1969-12-31T19:00:00|1969-12-31T19:00:00|1969-12-31T19:00:00|1969-12-31T19:01:59|0-0:01:59||COMPLETED|1|10|20|1.0|cpu=20,mem=1.0|cpu=20,mem=1.0|0-0:01:59||pod1\n"
-                           "1|1|test_cluster_name|||namespace1|PI1|123|PI1|123|1969-12-31T19:02:00|1969-12-31T19:02:00|1969-12-31T19:02:00|1969-12-31T19:02:59|0-0:00:59||COMPLETED|1|20|20|1.0|cpu=20,mem=1.0|cpu=20,mem=1.0|0-0:00:59||pod1\n"
-                           "2|2|test_cluster_name|||namespace1|PI1|123|PI1|123|1969-12-31T19:00:00|1969-12-31T19:00:00|1969-12-31T19:00:00|1969-12-31T19:00:59|0-0:00:59||COMPLETED|1|20|30|10.0|cpu=30,mem=10.0|cpu=30,mem=10.0|0-0:00:59||pod2\n"
-                           "3|3|test_cluster_name|||namespace1|PI1|123|PI1|123|1969-12-31T19:01:00|1969-12-31T19:01:00|1969-12-31T19:01:00|1969-12-31T19:01:59|0-0:00:59||COMPLETED|1|25|30|10.0|cpu=30,mem=10.0|cpu=30,mem=10.0|0-0:00:59||pod2\n"
-                           "4|4|test_cluster_name|||namespace1|PI1|123|PI1|123|1969-12-31T19:02:00|1969-12-31T19:02:00|1969-12-31T19:02:00|1969-12-31T19:02:59|0-0:00:59||COMPLETED|1|20|30|10.0|cpu=30,mem=10.0|cpu=30,mem=10.0|0-0:00:59||pod2\n"
-                           "5|5|test_cluster_name|||namespace2|PI2|456|PI2|456|1969-12-31T19:00:00|1969-12-31T19:00:00|1969-12-31T19:00:00|1969-12-31T19:02:59|0-0:02:59||COMPLETED|1|45|50|100.0|cpu=50,mem=100.0|cpu=50,mem=100.0|0-0:02:59||pod3\n")
+        expected_output = ("Namespace,Coldfront_PI Name,Coldfront Project ID ,Pod Start Time,Pod End Time,Duration (Hours),Pod Name,CPU Request,GPU Request,GPU Type,Memory Request (GiB),Determining Resource,SU Type,SU Count\n"
+                           "namespace1,PI1,123,1969-12-31T19:00:00,1969-12-31T19:02:00,0.0333,pod1,10,0,No GPU,0.001,CPU,SU_CPU,10\n"
+                           "namespace1,PI1,123,1969-12-31T19:02:00,1969-12-31T19:03:00,0.0167,pod1,20,0,No GPU,0.001,CPU,SU_CPU,20\n"
+                           "namespace1,PI1,123,1969-12-31T19:00:00,1969-12-31T19:01:00,0.0167,pod2,20,0,No GPU,0.0098,CPU,SU_CPU,20\n"
+                           "namespace1,PI1,123,1969-12-31T19:01:00,1969-12-31T19:02:00,0.0167,pod2,25,0,No GPU,0.0098,CPU,SU_CPU,25\n"
+                           "namespace1,PI1,123,1969-12-31T19:02:00,1969-12-31T19:03:00,0.0167,pod2,20,0,No GPU,0.0098,CPU,SU_CPU,20\n"
+                           "namespace2,PI2,456,1969-12-31T19:00:00,1969-12-31T19:03:00,0.05,pod3,45,0,No GPU,0.0977,CPU,SU_CPU,45\n")
 
         tmp_file_name = "%s/test-metrics-%s.log" % (tempfile.gettempdir(), time.time())
-        utils.write_metrics_log(test_metrics_dict, tmp_file_name, 'test_cluster_name')
+        utils.write_metrics_by_pod(test_metrics_dict, tmp_file_name)
         f = open(tmp_file_name, "r")
-        self.assertEquals(f.read(), expected_output)
+        self.assertEqual(f.read(), expected_output)
         f.close()
+
+class TestWriteMetricsByNamespace(TestCase):
+
+    @mock.patch('openshift_metrics.utils.get_namespace_annotations')
+    def test_write_metrics_log(self, mock_gna):
+        mock_gna.return_value = {
+            'namespace1': {
+                'cf_pi': 'PI1',
+                'cf_project_id': '123',
+            },
+            'namespace2': {
+                'cf_pi': 'PI2',
+                'cf_project_id': '456',
+            }
+        }
+        test_metrics_dict = {
+            "pod1": {
+                "namespace": "namespace1",
+                "gpu_type": utils.NO_GPU,
+                "metrics": {
+                    0: {
+                        "cpu_request": 2,
+                        "memory_request": 4 * 2**30,
+                        "duration": 43200
+                    },
+                    43200: {
+                        "cpu_request": 4,
+                        "memory_request": 4 * 2**30,
+                        "duration": 43200
+                    }
+                }
+            },
+            "pod2": {
+                "namespace": "namespace1",
+                "gpu_type": utils.NO_GPU,
+                "metrics": {
+                    0: {
+                        "cpu_request": 4,
+                        "memory_request": 1 * 2**30,
+                        "duration": 86400
+                    },
+                    86400: {
+                        "cpu_request": 20,
+                        "memory_request": 1 * 2**30,
+                        "duration": 172800
+                    }
+                }
+            },
+            "pod3": {
+                "namespace": "namespace2",
+                "gpu_type": utils.NO_GPU,
+                "metrics": {
+                    0: {
+                        "cpu_request": 1,
+                        "memory_request": 8 * 2**30,
+                        "duration": 172800
+                    },
+                }
+            },
+            "pod4": {
+                "namespace": "namespace2",
+                "gpu_type": utils.GPU_A100,
+                "metrics": {
+                    0: {
+                        "cpu_request": 1,
+                        "memory_request": 8 * 2**30,
+                        "gpu_request": 1,
+                        "duration": 172800
+                    },
+                }
+            },
+            "pod5": {
+                "namespace": "namespace2",
+                "gpu_type": utils.GPU_A10,
+                "metrics": {
+                    0: {
+                        "cpu_request": 24,
+                        "memory_request": 8 * 2**30,
+                        "gpu_request": 1,
+                        "duration": 172800
+                    },
+                }
+            },
+        }
+
+        expected_output = ("Namespace,Coldfront_PI Name,Report Start Date,Report End Date,_cpu_hours,_memory_hours,SU TYPE,SU Type Hours\n"
+                            "namespace1,PI1,01-01-2023,01-01-2023,1128.0,168.0,SU_CPU,1128\n"
+                            "namespace2,PI2,01-01-2023,01-01-2023,48.0,384.0,SU_CPU,96\n"
+                            "namespace2,PI2,01-01-2023,01-01-2023,NA,NA,SU_A100_GPU,48.0\n"
+                            "namespace2,PI2,01-01-2023,01-01-2023,NA,NA,SU_A10_GPU,144.0\n")
+
+        tmp_file_name = "%s/test-metrics-%s.log" % (tempfile.gettempdir(), time.time())
+        utils.write_metrics_by_namespace(test_metrics_dict, tmp_file_name, "01-01-2023", "01-01-2023")
+        f = open(tmp_file_name, "r")
+        self.assertEqual(f.read(), expected_output)
+        f.close()
+
+
+class TestGetServiceUnit(TestCase):
+
+    def test_cpu_only(self):
+        su_type, su_count, determining_resource = utils.get_service_unit(4, 16, 0, None)
+        self.assertEqual(su_type, utils.SU_CPU)
+        self.assertEqual(su_count, 4)
+        self.assertEqual(determining_resource, "CPU")
+
+    def test_known_gpu(self):
+        su_type, su_count, determining_resource = utils.get_service_unit(24, 96, 1, utils.GPU_A100)
+        self.assertEqual(su_type, utils.SU_A100_GPU)
+        self.assertEqual(su_count, 1)
+        self.assertEqual(determining_resource, "GPU")
+
+    def test_known_gpu_high_cpu(self):
+        su_type, su_count, determining_resource = utils.get_service_unit(50, 96, 1, utils.GPU_A100)
+        self.assertEqual(su_type, utils.SU_A100_GPU)
+        self.assertEqual(su_count, 3)
+        self.assertEqual(determining_resource, "CPU")
+
+    def test_known_gpu_high_memory(self):
+        su_type, su_count, determining_resource = utils.get_service_unit(24, 100, 1, utils.GPU_A100)
+        self.assertEqual(su_type, utils.SU_A100_GPU)
+        self.assertEqual(su_count, 2)
+        self.assertEqual(determining_resource, "RAM")
+
+    def test_known_gpu_low_cpu_memory(self):
+        su_type, su_count, determining_resource = utils.get_service_unit(2, 4, 1, utils.GPU_A100)
+        self.assertEqual(su_type, utils.SU_A100_GPU)
+        self.assertEqual(su_count, 1)
+        self.assertEqual(determining_resource, "GPU")
+
+    def test_unknown_gpu(self):
+        su_type, su_count, determining_resource = utils.get_service_unit(8, 64, 1, "Unknown_GPU_Type")
+        self.assertEqual(su_type, utils.SU_UNKNOWN_GPU)
+        self.assertEqual(su_count, 1)
+        self.assertEqual(determining_resource, "GPU")
+
+    def test_zero_memory(self):
+        su_type, su_count, determining_resource = utils.get_service_unit(1, 0, 0, None)
+        self.assertEqual(su_type, utils.SU_UNKNOWN)
+        self.assertEqual(su_count, 0)
+        self.assertEqual(determining_resource, "CPU")
+
+    def test_zero_cpu(self):
+        su_type, su_count, determining_resource = utils.get_service_unit(0, 1, 0, None)
+        self.assertEqual(su_type, utils.SU_UNKNOWN)
+        self.assertEqual(su_count, 0)
+        self.assertEqual(determining_resource, "CPU")
+
+    def test_memory_dominant(self):
+        su_type, su_count, determining_resource = utils.get_service_unit(8, 64, 0, None)
+        self.assertEqual(su_type, utils.SU_CPU)
+        self.assertEqual(su_count, 16)
+        self.assertEqual(determining_resource, "RAM")
