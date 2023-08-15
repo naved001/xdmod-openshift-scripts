@@ -379,10 +379,10 @@ def write_metrics_by_pod(metrics_dict, file_name):
         cf_project_id = namespace_annotation_dict.get("cf_project_id", 1)
 
         for epoch_time, pod_metric_dict in pod_metrics_dict.items():
-            start_time = datetime.datetime.fromtimestamp(float(epoch_time)).strftime(
+            start_time = datetime.datetime.utcfromtimestamp(float(epoch_time)).strftime(
                 "%Y-%m-%dT%H:%M:%S"
             )
-            end_time = datetime.datetime.fromtimestamp(
+            end_time = datetime.datetime.utcfromtimestamp(
                 float(epoch_time + pod_metric_dict["duration"])
             ).strftime("%Y-%m-%dT%H:%M:%S")
             duration = round(float(pod_metric_dict["duration"]) / 3600, 4)

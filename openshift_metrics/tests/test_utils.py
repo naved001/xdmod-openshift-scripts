@@ -467,12 +467,12 @@ class TestWriteMetricsByPod(TestCase):
         }
 
         expected_output = ("Namespace,Coldfront_PI Name,Coldfront Project ID ,Pod Start Time,Pod End Time,Duration (Hours),Pod Name,CPU Request,GPU Request,GPU Type,Memory Request (GiB),Determining Resource,SU Type,SU Count\n"
-                           "namespace1,PI1,123,1969-12-31T19:00:00,1969-12-31T19:02:00,0.0333,pod1,10,0,No GPU,0.001,CPU,SU_CPU,10\n"
-                           "namespace1,PI1,123,1969-12-31T19:02:00,1969-12-31T19:03:00,0.0167,pod1,20,0,No GPU,0.001,CPU,SU_CPU,20\n"
-                           "namespace1,PI1,123,1969-12-31T19:00:00,1969-12-31T19:01:00,0.0167,pod2,20,0,No GPU,0.0098,CPU,SU_CPU,20\n"
-                           "namespace1,PI1,123,1969-12-31T19:01:00,1969-12-31T19:02:00,0.0167,pod2,25,0,No GPU,0.0098,CPU,SU_CPU,25\n"
-                           "namespace1,PI1,123,1969-12-31T19:02:00,1969-12-31T19:03:00,0.0167,pod2,20,0,No GPU,0.0098,CPU,SU_CPU,20\n"
-                           "namespace2,PI2,456,1969-12-31T19:00:00,1969-12-31T19:03:00,0.05,pod3,45,0,No GPU,0.0977,CPU,SU_CPU,45\n")
+                           "namespace1,PI1,123,1970-01-01T00:00:00,1970-01-01T00:02:00,0.0333,pod1,10,0,No GPU,0.001,CPU,SU_CPU,10\n"
+                           "namespace1,PI1,123,1970-01-01T00:02:00,1970-01-01T00:03:00,0.0167,pod1,20,0,No GPU,0.001,CPU,SU_CPU,20\n"
+                           "namespace1,PI1,123,1970-01-01T00:00:00,1970-01-01T00:01:00,0.0167,pod2,20,0,No GPU,0.0098,CPU,SU_CPU,20\n"
+                           "namespace1,PI1,123,1970-01-01T00:01:00,1970-01-01T00:02:00,0.0167,pod2,25,0,No GPU,0.0098,CPU,SU_CPU,25\n"
+                           "namespace1,PI1,123,1970-01-01T00:02:00,1970-01-01T00:03:00,0.0167,pod2,20,0,No GPU,0.0098,CPU,SU_CPU,20\n"
+                           "namespace2,PI2,456,1970-01-01T00:00:00,1970-01-01T00:03:00,0.05,pod3,45,0,No GPU,0.0977,CPU,SU_CPU,45\n")
 
         tmp_file_name = "%s/test-metrics-%s.log" % (tempfile.gettempdir(), time.time())
         utils.write_metrics_by_pod(test_metrics_dict, tmp_file_name)
