@@ -402,6 +402,7 @@ class TestCondenseMetrics(TestCase):
         self.assertEqual(condensed_dict, expected_condensed_dict)
 
 class TestWriteMetricsByPod(TestCase):
+    maxDiff = None
 
     @mock.patch('openshift_metrics.utils.get_namespace_annotations')
     def test_write_metrics_log(self, mock_gna):
