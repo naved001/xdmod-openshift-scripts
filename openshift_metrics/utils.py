@@ -221,13 +221,17 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month):
     rows = []
     namespace_annotations = get_namespace_annotations()
     headers = [
-        "Namespace",
-        "Coldfront_PI Name",
-        "Report Month",
-        "_cpu_hours",
-        "_memory_hours",
-        "SU TYPE",
-        "SU Type Hours",
+        "Invoice Month",
+        "Project - Allocation",
+        "Project - Allocation ID",
+        "Manager (PI)",
+        "Invoice Address",
+        "Institution",
+        "Institution - Specific Code",
+        "SU Hours (GBhr or SUhr)",
+        "SU Type",
+        "Rate",
+        "Cost",
     ]
 
     rows.append(headers)
@@ -287,50 +291,65 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month):
         metrics["SU_CPU_HOURS"] += su_count_hours
 
         row = [
+            report_month,
+            namespace,
             namespace,
             metrics["pi"],
-            report_month,
-            str(metrics["_cpu_hours"]),
-            str(metrics["_memory_hours"]),
-            SU_CPU,
+            "", #Invoice Address
+            "", #Institution
+            "", #Institution - Specific Code
             str(metrics["SU_CPU_HOURS"]),
+            SU_CPU,
+            "", #Rate
+            "" #Cost
         ]
         rows.append(row)
 
         if metrics["SU_A100_GPU_HOURS"] != 0:
             row = [
+                report_month,
+                namespace,
                 namespace,
                 metrics["pi"],
-                report_start_date,
-                report_end_date,
-                "NA",
-                "NA",
-                SU_A100_GPU,
+                "", #Invoice Address
+                "", #Institution
+                "", #Institution - Specific Code
                 str(metrics["SU_A100_GPU_HOURS"]),
+                SU_A100_GPU,
+                "", #Rate
+                "" #Cost
             ]
             rows.append(row)
 
         if metrics["SU_A10_GPU_HOURS"] != 0:
             row = [
+                report_month,
+                namespace,
                 namespace,
                 metrics["pi"],
-                report_month,
-                "NA",
-                "NA",
-                SU_A10_GPU,
+                "", #Invoice Address
+                "", #Institution
+                "", #Institution - Specific Code
                 str(metrics["SU_A10_GPU_HOURS"]),
+                SU_A10_GPU,
+                "", #Rate
+                "" #Cost
             ]
             rows.append(row)
 
         if metrics["SU_MOC_GPU_HOURS"] != 0:
             row = [
+                report_month,
+                namespace,
                 namespace,
                 metrics["pi"],
-                report_month,
-                "NA",
-                "NA",
-                SU_MOC_GPU,
+                "", #Invoice Address
+                "", #Institution
+                "", #Institution - Specific Code
                 str(metrics["SU_MOC_GPU_HOURS"]),
+                SU_MOC_GPU,
+                "", #Rate
+                "" #Cost
             ]
             rows.append(row)
 
