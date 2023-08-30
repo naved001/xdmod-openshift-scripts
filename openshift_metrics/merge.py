@@ -51,14 +51,22 @@ def main():
 
     print(report_start_date)
     print(report_end_date)
+    report_start_date = datetime.strptime(report_start_date, "%Y-%m-%d")
+    report_end_date = datetime.strptime(report_end_date, "%Y-%m-%d")
+
+    report_month = datetime.strftime(report_start_date, "%Y-%m")
+
+    if report_start_date.month != report_end_date.month:
+        print("Warning: The report spans multiple months")
+        report_month += " to " + datetime.strftime(report_end_date, "%Y-%m")
+
     condensed_metrics_dict = utils.condense_metrics(
         merged_dictionary, ["cpu_request", "memory_request", "gpu_request"]
     )
     utils.write_metrics_by_namespace(
         condensed_metrics_dict,
         "namespace-" + output_file,
-        report_start_date,
-        report_end_date,
+        report_month
     )
     utils.write_metrics_by_pod(condensed_metrics_dict, "pod-" + output_file)
 

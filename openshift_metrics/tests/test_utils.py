@@ -564,14 +564,14 @@ class TestWriteMetricsByNamespace(TestCase):
             },
         }
 
-        expected_output = ("Namespace,Coldfront_PI Name,Report Start Date,Report End Date,_cpu_hours,_memory_hours,SU TYPE,SU Type Hours\n"
-                            "namespace1,PI1,01-01-2023,01-01-2023,1128.0,168.0,SU_CPU,1128\n"
-                            "namespace2,PI2,01-01-2023,01-01-2023,48.0,384.0,SU_CPU,96\n"
-                            "namespace2,PI2,01-01-2023,01-01-2023,NA,NA,SU_A100_GPU,48.0\n"
-                            "namespace2,PI2,01-01-2023,01-01-2023,NA,NA,SU_A10_GPU,144.0\n")
+        expected_output = ("Invoice Month,Project - Allocation,Project - Allocation ID,Manager (PI),Invoice Address,Institution,Institution - Specific Code,SU Hours (GBhr or SUhr),SU Type,Rate,Cost\n"
+                            "2023-01,namespace1,namespace1,PI1,,,,1128,SU_CPU,,\n"
+                            "2023-01,namespace2,namespace2,PI2,,,,96,SU_CPU,,\n"
+                            "2023-01,namespace2,namespace2,PI2,,,,48.0,SU_A100_GPU,,\n"
+                            "2023-01,namespace2,namespace2,PI2,,,,144.0,SU_A10_GPU,,\n")
 
         tmp_file_name = "%s/test-metrics-%s.log" % (tempfile.gettempdir(), time.time())
-        utils.write_metrics_by_namespace(test_metrics_dict, tmp_file_name, "01-01-2023", "01-01-2023")
+        utils.write_metrics_by_namespace(test_metrics_dict, tmp_file_name, "2023-01")
         f = open(tmp_file_name, "r")
         self.assertEqual(f.read(), expected_output)
         f.close()
