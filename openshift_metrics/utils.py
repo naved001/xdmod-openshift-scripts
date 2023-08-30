@@ -208,9 +208,7 @@ def csv_writer(rows, file_name):
         csvwriter.writerows(rows)
 
 
-def write_metrics_by_namespace(
-    condensed_metrics_dict, file_name, report_start_date, report_end_date
-):
+def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month):
     """
     Process metrics dictionary to aggregate usage by namespace and then write that to a file
 
@@ -225,8 +223,7 @@ def write_metrics_by_namespace(
     headers = [
         "Namespace",
         "Coldfront_PI Name",
-        "Report Start Date",
-        "Report End Date",
+        "Report Month",
         "_cpu_hours",
         "_memory_hours",
         "SU TYPE",
@@ -292,8 +289,7 @@ def write_metrics_by_namespace(
         row = [
             namespace,
             metrics["pi"],
-            report_start_date,
-            report_end_date,
+            report_month,
             str(metrics["_cpu_hours"]),
             str(metrics["_memory_hours"]),
             SU_CPU,
@@ -318,8 +314,7 @@ def write_metrics_by_namespace(
             row = [
                 namespace,
                 metrics["pi"],
-                report_start_date,
-                report_end_date,
+                report_month,
                 "NA",
                 "NA",
                 SU_A10_GPU,
@@ -331,8 +326,7 @@ def write_metrics_by_namespace(
             row = [
                 namespace,
                 metrics["pi"],
-                report_start_date,
-                report_end_date,
+                report_month,
                 "NA",
                 "NA",
                 SU_MOC_GPU,
