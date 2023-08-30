@@ -225,6 +225,7 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month):
         "Project - Allocation",
         "Project - Allocation ID",
         "Manager (PI)",
+        "Invoice Email",
         "Invoice Address",
         "Institution",
         "Institution - Specific Code",
@@ -295,6 +296,7 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month):
             namespace,
             namespace,
             metrics["pi"],
+            "", #Invoice Email
             "", #Invoice Address
             "", #Institution
             "", #Institution - Specific Code
@@ -311,6 +313,7 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month):
                 namespace,
                 namespace,
                 metrics["pi"],
+                "", #Invoice Email
                 "", #Invoice Address
                 "", #Institution
                 "", #Institution - Specific Code
@@ -327,6 +330,7 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month):
                 namespace,
                 namespace,
                 metrics["pi"],
+                "", #Invoice Email
                 "", #Invoice Address
                 "", #Institution
                 "", #Institution - Specific Code
@@ -343,6 +347,7 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month):
                 namespace,
                 namespace,
                 metrics["pi"],
+                "", #Invoice Email
                 "", #Invoice Address
                 "", #Institution
                 "", #Institution - Specific Code
