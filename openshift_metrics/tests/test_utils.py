@@ -564,11 +564,11 @@ class TestWriteMetricsByNamespace(TestCase):
             },
         }
 
-        expected_output = ("Invoice Month,Project - Allocation,Project - Allocation ID,Manager (PI),Invoice Address,Institution,Institution - Specific Code,SU Hours (GBhr or SUhr),SU Type,Rate,Cost\n"
-                            "2023-01,namespace1,namespace1,PI1,,,,1128,SU_CPU,,\n"
-                            "2023-01,namespace2,namespace2,PI2,,,,96,SU_CPU,,\n"
-                            "2023-01,namespace2,namespace2,PI2,,,,48.0,SU_A100_GPU,,\n"
-                            "2023-01,namespace2,namespace2,PI2,,,,144.0,SU_A10_GPU,,\n")
+        expected_output = ("Invoice Month,Project - Allocation,Project - Allocation ID,Manager (PI),Invoice Email,Invoice Address,Institution,Institution - Specific Code,SU Hours (GBhr or SUhr),SU Type,Rate,Cost\n"
+                            "2023-01,namespace1,namespace1,PI1,,,,,1128,SU_CPU,,\n"
+                            "2023-01,namespace2,namespace2,PI2,,,,,96,SU_CPU,,\n"
+                            "2023-01,namespace2,namespace2,PI2,,,,,48.0,SU_A100_GPU,,\n"
+                            "2023-01,namespace2,namespace2,PI2,,,,,144.0,SU_A10_GPU,,\n")
 
         tmp_file_name = "%s/test-metrics-%s.log" % (tempfile.gettempdir(), time.time())
         utils.write_metrics_by_namespace(test_metrics_dict, tmp_file_name, "2023-01")
