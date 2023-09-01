@@ -24,17 +24,26 @@ import openshift
 
 # GPU types
 GPU_A100 = "nvidia.com/gpu_A100"
-GPU_A10 = "nvidia.com/gpu_A10"
-GPU_MOC = "nvidia.com/gpu"
+GPU_A2 = "nvidia.com/gpu_A2"
+GPU_V100 = "nvidia.com/gpu_V100"
+GPU_GENERIC = "nvidia.com/gpu"
 NO_GPU = "No GPU"
 
 # SU Types
-SU_CPU = "SU_CPU"
-SU_A100_GPU = "SU_A100_GPU"
-SU_A10_GPU = "SU_A10_GPU"
-SU_MOC_GPU = "SU_MOC_GPU"
-SU_UNKNOWN_GPU = "SU_UNKNOWN_GPU"
-SU_UNKNOWN = "SU_UNKNOWN"
+SU_CPU = "OpenShift CPU"
+SU_A100_GPU = "OpenShift GPUA100"
+SU_A2_GPU = "OpenShift GPUA2"
+SU_V100_GPU = "OpenShift GPUV100"
+SU_UNKNOWN_GPU = "OpenShift Unknown GPU"
+SU_UNKNOWN = "Openshift Unknown"
+
+RATE = {
+    SU_CPU: 0.013,
+    SU_A100_GPU: 1.803,
+    SU_A2_GPU: 0.466,
+    SU_V100_GPU: 0.902,
+    SU_UNKNOWN_GPU: 0,
+}
 
 STEP_MIN = 15
 
@@ -97,18 +106,19 @@ def get_service_unit(cpu_count, memory_count, gpu_count, gpu_type):
 
     known_gpu_su = {
         GPU_A100: SU_A100_GPU,
-        GPU_A10: SU_A10_GPU,
-        GPU_MOC: SU_MOC_GPU,
+        GPU_A2: SU_A2_GPU,
+        GPU_V100: SU_V100_GPU,
+        GPU_GENERIC: SU_UNKNOWN_GPU,
     }
 
     # GPU count for some configs is -1 for math reasons, in reality it is 0
     su_config = {
         SU_CPU: {"gpu": -1, "cpu": 1, "ram": 4},
         SU_A100_GPU: {"gpu": 1, "cpu": 24, "ram": 96},
-        SU_A10_GPU: {"gpu": 1, "cpu": 8, "ram": 64},
+        SU_V100_GPU: {"gpu": 1, "cpu": 24, "ram": 96},
+        SU_A2_GPU: {"gpu": 1, "cpu": 8, "ram": 64},
         SU_UNKNOWN_GPU: {"gpu": 1, "cpu": 8, "ram": 64},
         SU_UNKNOWN: {"gpu": -1, "cpu": 1, "ram": 1},
-        SU_MOC_GPU: {"gpu": 1, "cpu": 24, "ram": 128},
     }
 
     if gpu_type is None and gpu_count == 0:
@@ -251,8 +261,8 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month):
                 "_memory_hours": 0,
                 "SU_CPU_HOURS": 0,
                 "SU_A100_GPU_HOURS": 0,
-                "SU_A10_GPU_HOURS": 0,
-                "SU_MOC_GPU_HOURS": 0,
+                "SU_A2_GPU_HOURS": 0,
+                "SU_V100_GPU_HOURS": 0,
                 "total_cost": 0,
             }
 
@@ -267,16 +277,16 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month):
                     float(cpu_request), memory_request, float(gpu_request), gpu_type
                 )
                 metrics_by_namespace[namespace]["SU_A100_GPU_HOURS"] += su_count * duration_in_hours
-            elif gpu_type == GPU_A10:
+            elif gpu_type == GPU_A2:
                 _, su_count, _ = get_service_unit(
                     float(cpu_request), memory_request, float(gpu_request), gpu_type
                 )
-                metrics_by_namespace[namespace]["SU_A10_GPU_HOURS"] += su_count * duration_in_hours
-            elif gpu_type == GPU_MOC:
+                metrics_by_namespace[namespace]["SU_A2_GPU_HOURS"] += su_count * duration_in_hours
+            elif gpu_type == GPU_GENERIC:
                 _, su_count, _ = get_service_unit(
                     float(cpu_request), memory_request, float(gpu_request), gpu_type
                 )
-                metrics_by_namespace[namespace]["SU_MOC_GPU_HOURS"] += su_count * duration_in_hours
+                metrics_by_namespace[namespace]["SU_V100_GPU_HOURS"] += su_count * duration_in_hours
             else:
                 metrics_by_namespace[namespace]["_cpu_hours"] += cpu_request * duration_in_hours
                 metrics_by_namespace[namespace]["_memory_hours"] += (
@@ -302,8 +312,8 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month):
             "", #Institution - Specific Code
             str(metrics["SU_CPU_HOURS"]),
             SU_CPU,
-            "", #Rate
-            "" #Cost
+            str(RATE.get(SU_CPU)),
+            str(RATE.get(SU_CPU) * metrics["SU_CPU_HOURS"])
         ]
         rows.append(row)
 
@@ -319,12 +329,12 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month):
                 "", #Institution - Specific Code
                 str(metrics["SU_A100_GPU_HOURS"]),
                 SU_A100_GPU,
-                "", #Rate
-                "" #Cost
+                str(RATE.get(SU_A100_GPU)),
+                str(RATE.get(SU_A100_GPU) * metrics["SU_A100_GPU_HOURS"])
             ]
             rows.append(row)
 
-        if metrics["SU_A10_GPU_HOURS"] != 0:
+        if metrics["SU_A2_GPU_HOURS"] != 0:
             row = [
                 report_month,
                 namespace,
@@ -334,14 +344,14 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month):
                 "", #Invoice Address
                 "", #Institution
                 "", #Institution - Specific Code
-                str(metrics["SU_A10_GPU_HOURS"]),
-                SU_A10_GPU,
-                "", #Rate
-                "" #Cost
+                str(metrics["SU_A2_GPU_HOURS"]),
+                SU_A2_GPU,
+                str(RATE.get(SU_A2_GPU)),
+                str(RATE.get(SU_A2_GPU) * metrics["SU_A2_GPU_HOURS"])
             ]
             rows.append(row)
 
-        if metrics["SU_MOC_GPU_HOURS"] != 0:
+        if metrics["SU_V100_GPU_HOURS"] != 0:
             row = [
                 report_month,
                 namespace,
@@ -351,10 +361,10 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month):
                 "", #Invoice Address
                 "", #Institution
                 "", #Institution - Specific Code
-                str(metrics["SU_MOC_GPU_HOURS"]),
+                str(metrics["SU_V100_GPU_HOURS"]),
                 SU_MOC_GPU,
-                "", #Rate
-                "" #Cost
+                str(RATE.get(SU_V100_GPU)),
+                str(RATE.get(SU_V100_GPU) * metrics["SU_V100_GPU_HOURS"]) #Cost
             ]
             rows.append(row)
 
