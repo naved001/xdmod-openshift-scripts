@@ -467,12 +467,12 @@ class TestWriteMetricsByPod(TestCase):
         }
 
         expected_output = ("Namespace,Coldfront_PI Name,Coldfront Project ID ,Pod Start Time,Pod End Time,Duration (Hours),Pod Name,CPU Request,GPU Request,GPU Type,Memory Request (GiB),Determining Resource,SU Type,SU Count\n"
-                           "namespace1,PI1,123,1970-01-01T00:00:00,1970-01-01T00:02:00,0.0333,pod1,10,0,No GPU,0.001,CPU,SU_CPU,10\n"
-                           "namespace1,PI1,123,1970-01-01T00:02:00,1970-01-01T00:03:00,0.0167,pod1,20,0,No GPU,0.001,CPU,SU_CPU,20\n"
-                           "namespace1,PI1,123,1970-01-01T00:00:00,1970-01-01T00:01:00,0.0167,pod2,20,0,No GPU,0.0098,CPU,SU_CPU,20\n"
-                           "namespace1,PI1,123,1970-01-01T00:01:00,1970-01-01T00:02:00,0.0167,pod2,25,0,No GPU,0.0098,CPU,SU_CPU,25\n"
-                           "namespace1,PI1,123,1970-01-01T00:02:00,1970-01-01T00:03:00,0.0167,pod2,20,0,No GPU,0.0098,CPU,SU_CPU,20\n"
-                           "namespace2,PI2,456,1970-01-01T00:00:00,1970-01-01T00:03:00,0.05,pod3,45,0,No GPU,0.0977,CPU,SU_CPU,45\n")
+                           "namespace1,PI1,123,1970-01-01T00:00:00,1970-01-01T00:02:00,0.0333,pod1,10,0,No GPU,0.001,CPU,OpenShift CPU,10\n"
+                           "namespace1,PI1,123,1970-01-01T00:02:00,1970-01-01T00:03:00,0.0167,pod1,20,0,No GPU,0.001,CPU,OpenShift CPU,20\n"
+                           "namespace1,PI1,123,1970-01-01T00:00:00,1970-01-01T00:01:00,0.0167,pod2,20,0,No GPU,0.0098,CPU,OpenShift CPU,20\n"
+                           "namespace1,PI1,123,1970-01-01T00:01:00,1970-01-01T00:02:00,0.0167,pod2,25,0,No GPU,0.0098,CPU,OpenShift CPU,25\n"
+                           "namespace1,PI1,123,1970-01-01T00:02:00,1970-01-01T00:03:00,0.0167,pod2,20,0,No GPU,0.0098,CPU,OpenShift CPU,20\n"
+                           "namespace2,PI2,456,1970-01-01T00:00:00,1970-01-01T00:03:00,0.05,pod3,45,0,No GPU,0.0977,CPU,OpenShift CPU,45\n")
 
         tmp_file_name = "%s/test-metrics-%s.log" % (tempfile.gettempdir(), time.time())
         utils.write_metrics_by_pod(test_metrics_dict, tmp_file_name)
@@ -552,7 +552,7 @@ class TestWriteMetricsByNamespace(TestCase):
             },
             "pod5": {
                 "namespace": "namespace2",
-                "gpu_type": utils.GPU_A10,
+                "gpu_type": utils.GPU_A2,
                 "metrics": {
                     0: {
                         "cpu_request": 24,
@@ -565,10 +565,10 @@ class TestWriteMetricsByNamespace(TestCase):
         }
 
         expected_output = ("Invoice Month,Project - Allocation,Project - Allocation ID,Manager (PI),Invoice Email,Invoice Address,Institution,Institution - Specific Code,SU Hours (GBhr or SUhr),SU Type,Rate,Cost\n"
-                            "2023-01,namespace1,namespace1,PI1,,,,,1128,SU_CPU,,\n"
-                            "2023-01,namespace2,namespace2,PI2,,,,,96,SU_CPU,,\n"
-                            "2023-01,namespace2,namespace2,PI2,,,,,48.0,SU_A100_GPU,,\n"
-                            "2023-01,namespace2,namespace2,PI2,,,,,144.0,SU_A10_GPU,,\n")
+                            "2023-01,namespace1,namespace1,PI1,,,,,1128,OpenShift CPU,0.013,14.664\n"
+                            "2023-01,namespace2,namespace2,PI2,,,,,96,OpenShift CPU,0.013,1.248\n"
+                            "2023-01,namespace2,namespace2,PI2,,,,,48.0,OpenShift GPUA100,1.803,86.544\n"
+                            "2023-01,namespace2,namespace2,PI2,,,,,144.0,OpenShift GPUA2,0.466,67.104\n")
 
         tmp_file_name = "%s/test-metrics-%s.log" % (tempfile.gettempdir(), time.time())
         utils.write_metrics_by_namespace(test_metrics_dict, tmp_file_name, "2023-01")
