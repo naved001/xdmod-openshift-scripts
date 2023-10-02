@@ -302,21 +302,22 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month):
 
         metrics["SU_CPU_HOURS"] += su_count_hours
 
-        row = [
-            report_month,
-            namespace,
-            namespace,
-            metrics["pi"],
-            "", #Invoice Email
-            "", #Invoice Address
-            "", #Institution
-            "", #Institution - Specific Code
-            str(metrics["SU_CPU_HOURS"]),
-            SU_CPU,
-            str(RATE.get(SU_CPU)),
-            str(RATE.get(SU_CPU) * metrics["SU_CPU_HOURS"])
-        ]
-        rows.append(row)
+        if metrics["SU_CPU_HOURS"] != 0:
+            row = [
+                report_month,
+                namespace,
+                namespace,
+                metrics["pi"],
+                "", #Invoice Email
+                "", #Invoice Address
+                "", #Institution
+                "", #Institution - Specific Code
+                str(metrics["SU_CPU_HOURS"]),
+                SU_CPU,
+                str(RATE.get(SU_CPU)),
+                str(RATE.get(SU_CPU) * metrics["SU_CPU_HOURS"])
+            ]
+            rows.append(row)
 
         if metrics["SU_A100_GPU_HOURS"] != 0:
             row = [
