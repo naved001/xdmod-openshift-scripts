@@ -263,6 +263,7 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month):
                 "SU_A100_GPU_HOURS": 0,
                 "SU_A2_GPU_HOURS": 0,
                 "SU_V100_GPU_HOURS": 0,
+                "SU_UNKNOWN_GPU_HOURS": 0,
                 "total_cost": 0,
             }
 
@@ -286,7 +287,7 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month):
                 _, su_count, _ = get_service_unit(
                     float(cpu_request), memory_request, float(gpu_request), gpu_type
                 )
-                metrics_by_namespace[namespace]["SU_V100_GPU_HOURS"] += su_count * duration_in_hours
+                metrics_by_namespace[namespace]["SU_UNKNOWN_GPU_HOURS"] += su_count * duration_in_hours
             else:
                 metrics_by_namespace[namespace]["_cpu_hours"] += cpu_request * duration_in_hours
                 metrics_by_namespace[namespace]["_memory_hours"] += (
@@ -362,12 +363,28 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month):
                 "", #Institution
                 "", #Institution - Specific Code
                 str(metrics["SU_V100_GPU_HOURS"]),
-                SU_MOC_GPU,
+                SU_V100_GPU,
                 str(RATE.get(SU_V100_GPU)),
                 str(RATE.get(SU_V100_GPU) * metrics["SU_V100_GPU_HOURS"]) #Cost
             ]
             rows.append(row)
 
+        if metrics["SU_UNKNOWN_GPU_HOURS"] != 0:
+            row = [
+                report_month,
+                namespace,
+                namespace,
+                metrics["pi"],
+                "", #Invoice Email
+                "", #Invoice Address
+                "", #Institution
+                "", #Institution - Specific Code
+                str(metrics["SU_UNKNOWN_GPU_HOURS"]),
+                SU_UNKNOWN_GPU,
+                str(RATE.get(SU_UNKNOWN_GPU)),
+                str(RATE.get(SU_UNKNOWN_GPU) * metrics["SU_UNKNOWN_GPU_HOURS"]) #Cost
+            ]
+            rows.append(row)
     csv_writer(rows, file_name)
 
 
