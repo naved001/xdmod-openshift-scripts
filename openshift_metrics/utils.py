@@ -329,10 +329,10 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month):
                 "", #Invoice Address
                 "", #Institution
                 "", #Institution - Specific Code
-                str(metrics["SU_A100_GPU_HOURS"]),
+                str(math.ceil(metrics["SU_A100_GPU_HOURS"])),
                 SU_A100_GPU,
                 str(RATE.get(SU_A100_GPU)),
-                str(RATE.get(SU_A100_GPU) * metrics["SU_A100_GPU_HOURS"])
+                str(RATE.get(SU_A100_GPU) * math.ceil(metrics["SU_A100_GPU_HOURS"]))
             ]
             rows.append(row)
 
@@ -346,10 +346,10 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month):
                 "", #Invoice Address
                 "", #Institution
                 "", #Institution - Specific Code
-                str(metrics["SU_A2_GPU_HOURS"]),
+                str(math.ceil(metrics["SU_A2_GPU_HOURS"])),
                 SU_A2_GPU,
                 str(RATE.get(SU_A2_GPU)),
-                str(RATE.get(SU_A2_GPU) * metrics["SU_A2_GPU_HOURS"])
+                str(RATE.get(SU_A2_GPU) * math.ceil(metrics["SU_A2_GPU_HOURS"]))
             ]
             rows.append(row)
 
@@ -363,10 +363,10 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month):
                 "", #Invoice Address
                 "", #Institution
                 "", #Institution - Specific Code
-                str(metrics["SU_V100_GPU_HOURS"]),
+                str(match.ceil(metrics["SU_V100_GPU_HOURS"])),
                 SU_V100_GPU,
                 str(RATE.get(SU_V100_GPU)),
-                str(RATE.get(SU_V100_GPU) * metrics["SU_V100_GPU_HOURS"]) #Cost
+                str(RATE.get(SU_V100_GPU) * match.ceil(metrics["SU_V100_GPU_HOURS"])) #Cost
             ]
             rows.append(row)
 
@@ -380,10 +380,10 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month):
                 "", #Invoice Address
                 "", #Institution
                 "", #Institution - Specific Code
-                str(metrics["SU_UNKNOWN_GPU_HOURS"]),
+                str(math.ceil(metrics["SU_UNKNOWN_GPU_HOURS"])),
                 SU_UNKNOWN_GPU,
                 str(RATE.get(SU_UNKNOWN_GPU)),
-                str(RATE.get(SU_UNKNOWN_GPU) * metrics["SU_UNKNOWN_GPU_HOURS"]) #Cost
+                str(RATE.get(SU_UNKNOWN_GPU) * math.ceil(metrics["SU_UNKNOWN_GPU_HOURS"])) #Cost
             ]
             rows.append(row)
     csv_writer(rows, file_name)
