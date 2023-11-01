@@ -546,7 +546,7 @@ class TestWriteMetricsByNamespace(TestCase):
                         "cpu_request": 1,
                         "memory_request": 8 * 2**30,
                         "gpu_request": 1,
-                        "duration": 172800
+                        "duration": 172700 # little under 48 hours, expect to be rounded up in the output
                     },
                 }
             },
@@ -567,8 +567,8 @@ class TestWriteMetricsByNamespace(TestCase):
         expected_output = ("Invoice Month,Project - Allocation,Project - Allocation ID,Manager (PI),Invoice Email,Invoice Address,Institution,Institution - Specific Code,SU Hours (GBhr or SUhr),SU Type,Rate,Cost\n"
                             "2023-01,namespace1,namespace1,PI1,,,,,1128,OpenShift CPU,0.013,14.664\n"
                             "2023-01,namespace2,namespace2,PI2,,,,,96,OpenShift CPU,0.013,1.248\n"
-                            "2023-01,namespace2,namespace2,PI2,,,,,48.0,OpenShift GPUA100,1.803,86.544\n"
-                            "2023-01,namespace2,namespace2,PI2,,,,,144.0,OpenShift GPUA2,0.466,67.104\n")
+                            "2023-01,namespace2,namespace2,PI2,,,,,48,OpenShift GPUA100,1.803,86.544\n"
+                            "2023-01,namespace2,namespace2,PI2,,,,,144,OpenShift GPUA2,0.466,67.104\n")
 
         tmp_file_name = "%s/test-metrics-%s.log" % (tempfile.gettempdir(), time.time())
         utils.write_metrics_by_namespace(test_metrics_dict, tmp_file_name, "2023-01")
