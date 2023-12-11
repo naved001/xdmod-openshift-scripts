@@ -23,7 +23,7 @@ def main():
     args = parser.parse_args()
     files = args.files
     merged_dictionary = {}
-    output_file = f"{datetime.today().strftime('%Y-%m-%d')}.log"
+    output_file = f"{datetime.today().strftime('%Y-%m-%d')}.csv"
 
     report_start_date = None
     report_end_date = None
