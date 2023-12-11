@@ -14,7 +14,7 @@
 """Collect and save metrics from prometheus"""
 
 import argparse
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 import sys
 import json
@@ -41,12 +41,12 @@ def main():
     parser.add_argument(
         "--report-start-date",
         help="report date (ex: 2022-03-14)",
-        default=(datetime.today()).strftime("%Y-%m-%d"),
+        default=(datetime.today() - timedelta(days=1)).strftime('%Y-%m-%d')
     )
     parser.add_argument(
         "--report-end-date",
         help="report date (ex: 2022-03-14)",
-        default=(datetime.today()).strftime("%Y-%m-%d"),
+        default=(datetime.today() - timedelta(days=1)).strftime('%Y-%m-%d')
     )
     parser.add_argument("--output-file")
 
@@ -63,12 +63,19 @@ def main():
 
     if args.output_file:
         output_file = args.output_file
+    elif report_start_date == report_end_date:
+        output_file = f"metrics-{report_start_date}.json"
     else:
         output_file = f"metrics-{report_start_date}-to-{report_end_date}.json"
 
     print(f"Generating report starting {report_start_date} and ending {report_end_date} in {output_file}")
 
-    token = openshift.get_auth_token()
+
+    token = os.environ.get("OPENSHIFT_TOKEN")
+
+    if token is None:
+        token = openshift.get_auth_token()
+
     metrics_dict = {}
     metrics_dict["start_date"] = report_start_date
     metrics_dict["end_date"] = report_end_date
@@ -90,6 +97,14 @@ def main():
         metrics_dict["gpu_metrics"] = gpu_request_metrics
     except utils.EmptyResultError:
         pass
+
+    month_year = datetime.strptime(report_start_date, "%Y-%m-%d").strftime("%Y-%m")
+    directory_name = f"data_{month_year}"
+
+    if not os.path.exists(directory_name):
+        os.makedirs(directory_name)
+
+    output_file = os.path.join(directory_name, output_file)
 
     with open(output_file, "w") as file:
         json.dump(metrics_dict, file)
