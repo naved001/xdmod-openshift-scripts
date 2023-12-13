@@ -464,21 +464,33 @@ class TestWriteMetricsByPod(TestCase):
                     },
                 }
             },
+            "pod4": { # this results in 0.5 SU
+                "namespace": "namespace2",
+                "gpu_type": utils.NO_GPU,
+                "metrics": {
+                    0: {
+                        "cpu_request": 0.5,
+                        "memory_request": 2147483648,
+                        "duration": 3600
+                    },
+                }
+            },
         }
 
         expected_output = ("Namespace,Coldfront_PI Name,Coldfront Project ID ,Pod Start Time,Pod End Time,Duration (Hours),Pod Name,CPU Request,GPU Request,GPU Type,Memory Request (GiB),Determining Resource,SU Type,SU Count\n"
-                           "namespace1,PI1,123,1970-01-01T00:00:00,1970-01-01T00:02:00,0.0333,pod1,10,0,No GPU,0.001,CPU,OpenShift CPU,10\n"
-                           "namespace1,PI1,123,1970-01-01T00:02:00,1970-01-01T00:03:00,0.0167,pod1,20,0,No GPU,0.001,CPU,OpenShift CPU,20\n"
-                           "namespace1,PI1,123,1970-01-01T00:00:00,1970-01-01T00:01:00,0.0167,pod2,20,0,No GPU,0.0098,CPU,OpenShift CPU,20\n"
-                           "namespace1,PI1,123,1970-01-01T00:01:00,1970-01-01T00:02:00,0.0167,pod2,25,0,No GPU,0.0098,CPU,OpenShift CPU,25\n"
-                           "namespace1,PI1,123,1970-01-01T00:02:00,1970-01-01T00:03:00,0.0167,pod2,20,0,No GPU,0.0098,CPU,OpenShift CPU,20\n"
-                           "namespace2,PI2,456,1970-01-01T00:00:00,1970-01-01T00:03:00,0.05,pod3,45,0,No GPU,0.0977,CPU,OpenShift CPU,45\n")
+                           "namespace1,PI1,123,1970-01-01T00:00:00,1970-01-01T00:02:00,0.0333,pod1,10,0,No GPU,0.001,CPU,OpenShift CPU,10.0\n"
+                           "namespace1,PI1,123,1970-01-01T00:02:00,1970-01-01T00:03:00,0.0167,pod1,20,0,No GPU,0.001,CPU,OpenShift CPU,20.0\n"
+                           "namespace1,PI1,123,1970-01-01T00:00:00,1970-01-01T00:01:00,0.0167,pod2,20,0,No GPU,0.0098,CPU,OpenShift CPU,20.0\n"
+                           "namespace1,PI1,123,1970-01-01T00:01:00,1970-01-01T00:02:00,0.0167,pod2,25,0,No GPU,0.0098,CPU,OpenShift CPU,25.0\n"
+                           "namespace1,PI1,123,1970-01-01T00:02:00,1970-01-01T00:03:00,0.0167,pod2,20,0,No GPU,0.0098,CPU,OpenShift CPU,20.0\n"
+                           "namespace2,PI2,456,1970-01-01T00:00:00,1970-01-01T00:03:00,0.05,pod3,45,0,No GPU,0.0977,CPU,OpenShift CPU,45.0\n"
+                           "namespace2,PI2,456,1970-01-01T00:00:00,1970-01-01T01:00:00,1.0,pod4,0.5,0,No GPU,2.0,CPU,OpenShift CPU,0.5\n")
 
         tmp_file_name = "%s/test-metrics-%s.log" % (tempfile.gettempdir(), time.time())
         utils.write_metrics_by_pod(test_metrics_dict, tmp_file_name)
-        f = open(tmp_file_name, "r")
-        self.assertEqual(f.read(), expected_output)
-        f.close()
+        with open(tmp_file_name, "r") as f:
+            self.assertEqual(f.read(), expected_output)
+
 
 class TestWriteMetricsByNamespace(TestCase):
 
@@ -572,9 +584,8 @@ class TestWriteMetricsByNamespace(TestCase):
 
         tmp_file_name = "%s/test-metrics-%s.log" % (tempfile.gettempdir(), time.time())
         utils.write_metrics_by_namespace(test_metrics_dict, tmp_file_name, "2023-01")
-        f = open(tmp_file_name, "r")
-        self.assertEqual(f.read(), expected_output)
-        f.close()
+        with open(tmp_file_name, "r") as f:
+            self.assertEqual(f.read(), expected_output)
 
 
 class TestGetServiceUnit(TestCase):
@@ -632,3 +643,21 @@ class TestGetServiceUnit(TestCase):
         self.assertEqual(su_type, utils.SU_CPU)
         self.assertEqual(su_count, 16)
         self.assertEqual(determining_resource, "RAM")
+
+    def test_fractional_su_cpu_dominant(self):
+        su_type, su_count, determining_resource = utils.get_service_unit(0.5, 0.5, 0, None)
+        self.assertEqual(su_type, utils.SU_CPU)
+        self.assertEqual(su_count, 0.5)
+        self.assertEqual(determining_resource, "CPU")
+
+    def test_fractional_su_memory_dominant(self):
+        su_type, su_count, determining_resource = utils.get_service_unit(0.1, 1, 0, None)
+        self.assertEqual(su_type, utils.SU_CPU)
+        self.assertEqual(su_count, 0.25)
+        self.assertEqual(determining_resource, "RAM")
+
+    def test_known_gpu_fractional_cpu_memory(self):
+        su_type, su_count, determining_resource = utils.get_service_unit(0.8, 0.8, 1, utils.GPU_A100)
+        self.assertEqual(su_type, utils.SU_A100_GPU)
+        self.assertEqual(su_count, 1)
+        self.assertEqual(determining_resource, "GPU")

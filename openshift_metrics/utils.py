@@ -99,6 +99,7 @@ def get_service_unit(cpu_count, memory_count, gpu_count, gpu_type):
     """
     su_type = SU_UNKNOWN
     su_count = 0
+
     if gpu_type == NO_GPU:
         gpu_type = None
 
@@ -132,14 +133,15 @@ def get_service_unit(cpu_count, memory_count, gpu_count, gpu_type):
     else:
         su_type = known_gpu_su.get(gpu_type, SU_UNKNOWN_GPU)
 
-    # because openshift offers fractional CPUs, so we round it up.
-    cpu_count = math.ceil(cpu_count)
-
     cpu_multiplier = cpu_count / su_config[su_type]["cpu"]
     gpu_multiplier = gpu_count / su_config[su_type]["gpu"]
-    memory_multiplier = math.ceil(memory_count / su_config[su_type]["ram"])
+    memory_multiplier = memory_count / su_config[su_type]["ram"]
 
-    su_count = math.ceil(max(cpu_multiplier, gpu_multiplier, memory_multiplier))
+    su_count = max(cpu_multiplier, gpu_multiplier, memory_multiplier)
+
+    # no fractional SUs for GPU SUs
+    if su_type != SU_CPU:
+        su_count = math.ceil(su_count)
 
     if gpu_multiplier >= cpu_multiplier and gpu_multiplier >= memory_multiplier:
         determining_resource = "GPU"
@@ -227,11 +229,6 @@ def csv_writer(rows, file_name):
 def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month):
     """
     Process metrics dictionary to aggregate usage by namespace and then write that to a file
-
-    It sums up the cpu and memory resources for all non-gpu pods per project and then calculates
-    service units on the total.
-
-    For GPU resources, it relies on the `get_service_unit` method to get the SU count.
     """
     metrics_by_namespace = {}
     rows = []
@@ -279,34 +276,18 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month):
             gpu_request = float(pod_metric_dict.get("gpu_request", 0))
             memory_request = float(pod_metric_dict.get("memory_request", 0)) / 2**30
 
+            _, su_count, _ = get_service_unit(cpu_request, memory_request, gpu_request, gpu_type)
+
             if gpu_type == GPU_A100:
-                _, su_count, _ = get_service_unit(
-                    float(cpu_request), memory_request, float(gpu_request), gpu_type
-                )
                 metrics_by_namespace[namespace]["SU_A100_GPU_HOURS"] += su_count * duration_in_hours
             elif gpu_type == GPU_A2:
-                _, su_count, _ = get_service_unit(
-                    float(cpu_request), memory_request, float(gpu_request), gpu_type
-                )
                 metrics_by_namespace[namespace]["SU_A2_GPU_HOURS"] += su_count * duration_in_hours
             elif gpu_type == GPU_GENERIC:
-                _, su_count, _ = get_service_unit(
-                    float(cpu_request), memory_request, float(gpu_request), gpu_type
-                )
                 metrics_by_namespace[namespace]["SU_UNKNOWN_GPU_HOURS"] += su_count * duration_in_hours
             else:
-                metrics_by_namespace[namespace]["_cpu_hours"] += cpu_request * duration_in_hours
-                metrics_by_namespace[namespace]["_memory_hours"] += (
-                    memory_request * duration_in_hours
-                )
+                metrics_by_namespace[namespace]["SU_CPU_HOURS"] += su_count * duration_in_hours
 
     for namespace, metrics in metrics_by_namespace.items():
-        cpu_multiplier = metrics["_cpu_hours"] / 1
-        memory_multiplier = metrics["_memory_hours"] / 4
-
-        su_count_hours = math.ceil(max(cpu_multiplier, memory_multiplier))
-
-        metrics["SU_CPU_HOURS"] += su_count_hours
 
         if metrics["SU_CPU_HOURS"] != 0:
             row = [
@@ -318,7 +299,7 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month):
                 "", #Invoice Address
                 "", #Institution
                 "", #Institution - Specific Code
-                str(metrics["SU_CPU_HOURS"]),
+                str(math.ceil(metrics["SU_CPU_HOURS"])),
                 SU_CPU,
                 str(RATE.get(SU_CPU)),
                 str(RATE.get(SU_CPU) * metrics["SU_CPU_HOURS"])
@@ -463,5 +444,4 @@ def write_metrics_by_pod(metrics_dict, file_name):
             ]
 
             rows.append(info_list)
-
     csv_writer(rows, file_name)
