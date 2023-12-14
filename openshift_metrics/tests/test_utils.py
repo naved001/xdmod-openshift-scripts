@@ -11,11 +11,8 @@
 #   under the License.
 #
 
-import mock
-import requests
 import tempfile
-import time
-from unittest import TestCase
+from unittest import TestCase, mock
 
 from openshift_metrics import utils
 import openshift as oc
@@ -24,7 +21,8 @@ import openshift as oc
 class TestQueryMetric(TestCase):
 
     @mock.patch('requests.get')
-    def test_query_metric(self, mock_get):
+    @mock.patch('time.sleep')
+    def test_query_metric(self, mock_sleep, mock_get):
         mock_response = mock.Mock(status_code=200)
         mock_response.json.return_value = {"data": {
             "result": "this is data"
@@ -36,7 +34,8 @@ class TestQueryMetric(TestCase):
         self.assertEqual(mock_get.call_count, 1)
 
     @mock.patch('requests.get')
-    def test_query_metric_exception(self, mock_get):
+    @mock.patch('time.sleep')
+    def test_query_metric_exception(self, mock_sleep, mock_get):
         mock_get.return_value = mock.Mock(status_code=404)
 
         self.assertRaises(Exception, utils.query_metric, 'fake-url', 'fake-token',
@@ -486,10 +485,9 @@ class TestWriteMetricsByPod(TestCase):
                            "namespace2,PI2,456,1970-01-01T00:00:00,1970-01-01T00:03:00,0.05,pod3,45,0,No GPU,0.0977,CPU,OpenShift CPU,45.0\n"
                            "namespace2,PI2,456,1970-01-01T00:00:00,1970-01-01T01:00:00,1.0,pod4,0.5,0,No GPU,2.0,CPU,OpenShift CPU,0.5\n")
 
-        tmp_file_name = "%s/test-metrics-%s.log" % (tempfile.gettempdir(), time.time())
-        utils.write_metrics_by_pod(test_metrics_dict, tmp_file_name)
-        with open(tmp_file_name, "r") as f:
-            self.assertEqual(f.read(), expected_output)
+        with tempfile.NamedTemporaryFile(mode="w+") as tmp:
+            utils.write_metrics_by_pod(test_metrics_dict, tmp.name)
+            self.assertEqual(tmp.read(), expected_output)
 
 
 class TestWriteMetricsByNamespace(TestCase):
@@ -582,10 +580,9 @@ class TestWriteMetricsByNamespace(TestCase):
                             "2023-01,namespace2,namespace2,PI2,,,,,48,OpenShift GPUA100,1.803,86.544\n"
                             "2023-01,namespace2,namespace2,PI2,,,,,144,OpenShift GPUA2,0.466,67.104\n")
 
-        tmp_file_name = "%s/test-metrics-%s.log" % (tempfile.gettempdir(), time.time())
-        utils.write_metrics_by_namespace(test_metrics_dict, tmp_file_name, "2023-01")
-        with open(tmp_file_name, "r") as f:
-            self.assertEqual(f.read(), expected_output)
+        with tempfile.NamedTemporaryFile(mode="w+") as tmp:
+            utils.write_metrics_by_namespace(test_metrics_dict, tmp.name, "2023-01")
+            self.assertEqual(tmp.read(), expected_output)
 
 
 class TestGetServiceUnit(TestCase):
