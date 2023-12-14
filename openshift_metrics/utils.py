@@ -13,6 +13,7 @@
 
 """Holds bunch of utility functions"""
 
+import os
 import datetime
 import time
 import math
@@ -79,6 +80,11 @@ def get_namespace_annotations():
     Returns namespace annotations
     Used for finding coldfront pi name and id
     """
+    token = os.environ.get("OPENSHIFT_TOKEN")
+
+    if token is not None:
+        openshift.set_default_token(token)
+
     namespaces_dict = {}
     namespaces = openshift.selector("namespaces").objects()
     for namespace in namespaces:
