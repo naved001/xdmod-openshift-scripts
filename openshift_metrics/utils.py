@@ -305,7 +305,7 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month):
                 str(math.ceil(metrics["SU_CPU_HOURS"])),
                 SU_CPU,
                 str(RATE.get(SU_CPU)),
-                str(RATE.get(SU_CPU) * metrics["SU_CPU_HOURS"])
+                str(round(RATE.get(SU_CPU) * math.ceil(metrics["SU_CPU_HOURS"]), 2))
             ]
             rows.append(row)
 
@@ -322,7 +322,7 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month):
                 str(math.ceil(metrics["SU_A100_GPU_HOURS"])),
                 SU_A100_GPU,
                 str(RATE.get(SU_A100_GPU)),
-                str(RATE.get(SU_A100_GPU) * math.ceil(metrics["SU_A100_GPU_HOURS"]))
+                str(round(RATE.get(SU_A100_GPU) * math.ceil(metrics["SU_A100_GPU_HOURS"]), 2))
             ]
             rows.append(row)
 
@@ -339,7 +339,7 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month):
                 str(math.ceil(metrics["SU_A2_GPU_HOURS"])),
                 SU_A2_GPU,
                 str(RATE.get(SU_A2_GPU)),
-                str(RATE.get(SU_A2_GPU) * math.ceil(metrics["SU_A2_GPU_HOURS"]))
+                str(round(RATE.get(SU_A2_GPU) * math.ceil(metrics["SU_A2_GPU_HOURS"]), 2))
             ]
             rows.append(row)
 
@@ -356,7 +356,7 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month):
                 str(match.ceil(metrics["SU_V100_GPU_HOURS"])),
                 SU_V100_GPU,
                 str(RATE.get(SU_V100_GPU)),
-                str(RATE.get(SU_V100_GPU) * match.ceil(metrics["SU_V100_GPU_HOURS"])) #Cost
+                str(round(RATE.get(SU_V100_GPU) * match.ceil(metrics["SU_V100_GPU_HOURS"]), 2))
             ]
             rows.append(row)
 
