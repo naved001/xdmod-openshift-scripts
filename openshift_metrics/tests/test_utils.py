@@ -575,10 +575,10 @@ class TestWriteMetricsByNamespace(TestCase):
         }
 
         expected_output = ("Invoice Month,Project - Allocation,Project - Allocation ID,Manager (PI),Invoice Email,Invoice Address,Institution,Institution - Specific Code,SU Hours (GBhr or SUhr),SU Type,Rate,Cost\n"
-                            "2023-01,namespace1,namespace1,PI1,,,,,1128,OpenShift CPU,0.013,14.664\n"
-                            "2023-01,namespace2,namespace2,PI2,,,,,96,OpenShift CPU,0.013,1.248\n"
-                            "2023-01,namespace2,namespace2,PI2,,,,,48,OpenShift GPUA100,1.803,86.544\n"
-                            "2023-01,namespace2,namespace2,PI2,,,,,144,OpenShift GPUA2,0.466,67.104\n")
+                            "2023-01,namespace1,namespace1,PI1,,,,,1128,OpenShift CPU,0.013,14.66\n"
+                            "2023-01,namespace2,namespace2,PI2,,,,,96,OpenShift CPU,0.013,1.25\n"
+                            "2023-01,namespace2,namespace2,PI2,,,,,48,OpenShift GPUA100,1.803,86.54\n"
+                            "2023-01,namespace2,namespace2,PI2,,,,,144,OpenShift GPUA2,0.466,67.1\n")
 
         with tempfile.NamedTemporaryFile(mode="w+") as tmp:
             utils.write_metrics_by_namespace(test_metrics_dict, tmp.name, "2023-01")
