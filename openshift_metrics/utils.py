@@ -81,9 +81,12 @@ def get_namespace_annotations():
     Used for finding coldfront pi name and id
     """
     token = os.environ.get("OPENSHIFT_TOKEN")
+    api_url = os.environ.get("OPENSHIFT_API_URL")
 
     if token is not None:
         openshift.set_default_token(token)
+    if api_url is not None:
+        openshift.set_default_api_url(api_url)
 
     namespaces_dict = {}
     namespaces = openshift.selector("namespaces").objects()
