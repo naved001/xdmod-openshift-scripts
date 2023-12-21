@@ -20,11 +20,16 @@ def main():
     """Reads the metrics from files and generates the reports"""
     parser = argparse.ArgumentParser()
     parser.add_argument("files", nargs="+")
+    parser.add_argument("--output-file")
     args = parser.parse_args()
     files = args.files
-    merged_dictionary = {}
-    output_file = f"{datetime.today().strftime('%Y-%m-%d')}.csv"
 
+    if args.output_file:
+        output_file = args.output_file
+    else:
+        output_file = f"{datetime.today().strftime('%Y-%m-%d')}.csv"
+
+    merged_dictionary = {}
     report_start_date = None
     report_end_date = None
 
@@ -65,7 +70,7 @@ def main():
     )
     utils.write_metrics_by_namespace(
         condensed_metrics_dict,
-        "namespace-" + output_file,
+        output_file,
         report_month
     )
     utils.write_metrics_by_pod(condensed_metrics_dict, "pod-" + output_file)
