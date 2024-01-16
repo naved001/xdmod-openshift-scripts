@@ -242,6 +242,65 @@ class TestMergeMetrics(TestCase):
         utils.merge_metrics('mem', test_metric_list, output_dict)
         self.assertEqual(output_dict, expected_output_dict)
 
+    def test_merge_metrics_overlapping_range(self):
+        test_metric_list = [
+            {
+                "metric": {
+                    "pod": "pod1",
+                    "namespace": "namespace1",
+                    "resource": "cpu",
+                },
+                "values": [
+                    [0, 10],
+                    [60, 10],
+                    [120, 10],
+                ]
+            },
+
+        ]
+        test_metric_list_2 = [
+            {
+                "metric": {
+                    "pod": "pod1",
+                    "namespace": "namespace1",
+                    "resource": "cpu",
+                },
+                "values": [
+                    [60, 8],
+                    [120, 8],
+                    [180, 10],
+                ]
+            },
+
+        ]
+        expected_output_dict = {
+            "pod1": {
+                "namespace": "namespace1",
+                "gpu_type": utils.NO_GPU,
+                "metrics": {
+                    0: {
+                        "cpu": 10
+                    },
+                    60: {
+                        "cpu": 8
+                    },
+                    120: {
+                        "cpu": 8
+                    },
+                    180: {
+                        "cpu": 10
+                    },
+                }
+            },
+        }
+        output_dict = {}
+        utils.merge_metrics('cpu', test_metric_list, output_dict)
+        utils.merge_metrics('cpu', test_metric_list_2, output_dict)
+        self.assertEqual(output_dict, expected_output_dict)
+
+        # trying to merge the same metrics again should not change anything
+        utils.merge_metrics('cpu', test_metric_list_2, output_dict)
+        self.assertEqual(output_dict, expected_output_dict)
 
 class TestCondenseMetrics(TestCase):
 
