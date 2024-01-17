@@ -1,37 +1,75 @@
 # openshift-usage-scripts
 
-openshift-usage-scripts contains a couple of scripts to pull metrics from Prometheus or Thanos
-and then merge the metrics to produce a CSV report by pods and by namespaces.
+openshift-usage-scripts contains 2 scripts:
 
-The reports do the necessary maths to calcuate Service Unit hours. For non-GPU pods we sum up the CPU
-and Memory usage for each namespace and then calculate the SU hours on that. GPU pods are treated separately.
+1. `openshift-usage-scripts/openshift-prometheus_metrics.py` that collects metrics from prometheus and writes those to a json file.
+2. `openshift-usage-scripts/merge.py` takes the collected metrics and produces CSV OpenShift usage reports, one by namespace and other by pod.
 
 This was a fork of https://github.com/OCP-on-NERC/xdmod-openshift-scripts
 
 ## Usage
 
-In order to run the scripts, you must run `oc login` first.
+In order to run the scripts, you need to run `oc login` or set the following environment variables:
+
+- `OPENSHIFT_TOKEN` for both scripts.
+- `OPENSHIFT_API_URL=https://api.shift.nerc.mghpcc.org:6443` for `merge.py`.
+
+We are using the token for `xdmod-reader` service account in `xdmod-reader` namespace on nerc-prod cluster. You can extract the token with:
+`oc get secrets -n xdmod-reader --as system:admin xdmod-reader-token-m6s2m -o yaml | yq .data.token -r |base64 -d` .
+
+Note that if you are logged in with `oc login` then you don't need to manually set the OPENSHIFT_TOKEN or OPENSHIFT_API_URL.
 
 When running the scripts, there are two methods of specifying the OpenShift Prometheus
 endpoint. The first is through an environment variable:
 
 ```
     $ export OPENSHIFT_PROMETHEUS_URL=<prometheus url>
-    $ python openshift_metrics/openshift_prometheus_metrics.py 
+    $ python openshift-usage-scripts/openshift_prometheus_metrics.py
 ```
 
 The second is directly on the command line:
 
 ```
-    $ python openshift_metrics/openshift_prometheus_metrics.py --openshift-url <prometheus url>
+    $ python openshift-usage-scripts/openshift_prometheus_metrics.py --openshift-url <prometheus url>
 ```
 
-By default the script will pull data from today and will go back to the specified report length.
+### Collecting metrics
 
-You can also specify a different date:
+By default the script will pull data from the day before.
 
 ```
-    $ python openshift_metrics/openshift_prometheus_metrics.py --report-date 2022-03-14
+   $ python openshift_metrics/openshift_prometheus_metrics.py \
+    --openshift-url https://thanos-querier-openshift-monitoring.apps.shift.nerc.mghpcc.org \
+```
+
+You can specify a data range to collect metrics for a time period like this:
+
+```
+    $ python openshift_metrics/openshift_prometheus_metrics.py \
+    --openshift-url https://thanos-querier-openshift-monitoring.apps.shift.nerc.mghpcc.org \
+    --report-start-date 2022-03-01 \
+    --report-end-date 2022-03-07 \
+```
+
+This will collect metrics from March 1st to March 7th, inclusive.
+
+### Merging and producing the report
+
+You can generate the openshift usage report by passing it multiple metrics files
+
+```
+   $ python openshift_metrics/merge.py \
+     metrics-2024-01-01-to-2024-01-07.json \
+     metrics-2024-01-08-to-2024-01-14.json \
+     metrics-2024-01-15-to-2024-01-16.json
+```
+
+This will merge the metrics and produce the openshift usage report of the period January 1st to January 16.
+
+Output file name can be specified with the `--output-file` flags. You can also pass in a bunch of files like this:
+
+```
+$ python openshift_metrics/merge.py data_2024_01/*.json
 ```
 
 ## How It Works
