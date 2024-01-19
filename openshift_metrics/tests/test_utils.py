@@ -16,7 +16,7 @@ from unittest import TestCase, mock
 
 from openshift_metrics import utils
 import openshift as oc
-
+import os
 
 class TestQueryMetric(TestCase):
 
@@ -44,40 +44,51 @@ class TestQueryMetric(TestCase):
 
 class TestGetNamespaceAnnotations(TestCase):
 
-    @mock.patch('openshift.selector')
-    def test_get_namespace_annotations(self, mock_selector):
-        mock_namespaces = mock.Mock()
-        mock_namespaces.objects.return_value = [
-            oc.apiobject.APIObject({
-                'metadata': {
-                    'name': 'namespace1',
-                    'annotations': {
-                        'anno1': 'value1',
-                        'anno2': 'value2'
-                    }
+    @mock.patch('openshift_metrics.utils.requests.post')
+    @mock.patch('openshift_metrics.utils.requests.session')
+    def test_get_namespace_attributes(self, mock_session, mock_post):
+        mock_response_json = [
+            {
+                "attributes": {
+                    "Allocated Project Name": "Project 1",
+                    "Institution - Specific Code": "123"
+                },
+                "project": {
+                    "pi": "PI 1",
+                    "id": "1"
                 }
-            }),
-            oc.apiobject.APIObject({
-                'metadata': {
-                    'name': 'namespace2',
-                    'annotations': {
-                        'anno3': 'value3',
-                        'anno4': 'value4'
-                    }
-                }
-            })
-        ]
-        mock_selector.return_value = mock_namespaces
-
-        namespaces_dict = utils.get_namespace_annotations()
-        expected_namespaces_dict = {
-            'namespace1': {
-                'anno1': 'value1',
-                'anno2': 'value2'
             },
-            'namespace2': {
-                'anno3': 'value3',
-                'anno4': 'value4'
+            {
+                "attributes": {
+                    "Allocated Project Name": "Project 2",
+                    "Institution - Specific Code": "456"
+                },
+                "project": {
+                    "pi": "PI 2",
+                    "id": "2"
+                }
+            }
+        ]
+        mock_response = mock.Mock()
+        mock_response.json.return_value = mock_response_json
+
+        mock_session_instance = mock_session.return_value
+        mock_session_instance.get.return_value = mock_response
+
+        with mock.patch.dict(os.environ, {"CLIENT_ID": "your_client_id", "CLIENT_SECRET": "your_client_secret"}):
+            namespaces_dict = utils.get_namespace_attributes()
+
+
+        expected_namespaces_dict = {
+            "Project 1": {
+                "cf_pi": "PI 1",
+                "cf_project_id": "1",
+                "institution_code": "123"
+            },
+            "Project 2": {
+                "cf_pi": "PI 2",
+                "cf_project_id": "2",
+                "institution_code": "456"
             }
         }
         self.assertEqual(namespaces_dict, expected_namespaces_dict)
@@ -461,7 +472,7 @@ class TestCondenseMetrics(TestCase):
 
 class TestWriteMetricsByPod(TestCase):
 
-    @mock.patch('openshift_metrics.utils.get_namespace_annotations')
+    @mock.patch('openshift_metrics.utils.get_namespace_attributes')
     def test_write_metrics_log(self, mock_gna):
         mock_gna.return_value = {
             'namespace1': {
@@ -551,12 +562,13 @@ class TestWriteMetricsByPod(TestCase):
 
 class TestWriteMetricsByNamespace(TestCase):
 
-    @mock.patch('openshift_metrics.utils.get_namespace_annotations')
+    @mock.patch('openshift_metrics.utils.get_namespace_attributes')
     def test_write_metrics_log(self, mock_gna):
         mock_gna.return_value = {
             'namespace1': {
                 'cf_pi': 'PI1',
                 'cf_project_id': '123',
+                'institution_code': '76'
             },
             'namespace2': {
                 'cf_pi': 'PI2',
@@ -634,7 +646,7 @@ class TestWriteMetricsByNamespace(TestCase):
         }
 
         expected_output = ("Invoice Month,Project - Allocation,Project - Allocation ID,Manager (PI),Invoice Email,Invoice Address,Institution,Institution - Specific Code,SU Hours (GBhr or SUhr),SU Type,Rate,Cost\n"
-                            "2023-01,namespace1,namespace1,PI1,,,,,1128,OpenShift CPU,0.013,14.66\n"
+                            "2023-01,namespace1,namespace1,PI1,,,,76,1128,OpenShift CPU,0.013,14.66\n"
                             "2023-01,namespace2,namespace2,PI2,,,,,96,OpenShift CPU,0.013,1.25\n"
                             "2023-01,namespace2,namespace2,PI2,,,,,48,OpenShift GPUA100,1.803,86.54\n"
                             "2023-01,namespace2,namespace2,PI2,,,,,144,OpenShift GPUA2,0.466,67.1\n")
