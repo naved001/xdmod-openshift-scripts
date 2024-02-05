@@ -42,7 +42,7 @@ RATE = {
     SU_CPU: 0.013,
     SU_A100_GPU: 1.803,
     SU_A2_GPU: 0.466,
-    SU_V100_GPU: 0.902,
+    SU_V100_GPU: 1.214,
     SU_UNKNOWN_GPU: 0,
 }
 
@@ -124,8 +124,8 @@ def get_service_unit(cpu_count, memory_count, gpu_count, gpu_type):
     # GPU count for some configs is -1 for math reasons, in reality it is 0
     su_config = {
         SU_CPU: {"gpu": -1, "cpu": 1, "ram": 4},
-        SU_A100_GPU: {"gpu": 1, "cpu": 24, "ram": 96},
-        SU_V100_GPU: {"gpu": 1, "cpu": 24, "ram": 96},
+        SU_A100_GPU: {"gpu": 1, "cpu": 24, "ram": 74},
+        SU_V100_GPU: {"gpu": 1, "cpu": 24, "ram": 192},
         SU_A2_GPU: {"gpu": 1, "cpu": 8, "ram": 64},
         SU_UNKNOWN_GPU: {"gpu": 1, "cpu": 8, "ram": 64},
         SU_UNKNOWN: {"gpu": -1, "cpu": 1, "ram": 1},
