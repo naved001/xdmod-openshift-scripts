@@ -653,7 +653,7 @@ class TestGetServiceUnit(TestCase):
         self.assertEqual(determining_resource, "CPU")
 
     def test_known_gpu(self):
-        su_type, su_count, determining_resource = utils.get_service_unit(24, 96, 1, utils.GPU_A100)
+        su_type, su_count, determining_resource = utils.get_service_unit(24, 74, 1, utils.GPU_A100)
         self.assertEqual(su_type, utils.SU_A100_GPU)
         self.assertEqual(su_count, 1)
         self.assertEqual(determining_resource, "GPU")
