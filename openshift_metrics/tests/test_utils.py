@@ -15,7 +15,6 @@ import tempfile
 from unittest import TestCase, mock
 
 from openshift_metrics import utils
-import openshift as oc
 import os
 
 class TestQueryMetric(TestCase):

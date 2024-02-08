@@ -20,8 +20,6 @@ import math
 import csv
 import requests
 
-import openshift
-
 
 # GPU types
 GPU_A100 = "nvidia.com/gpu_A100"
