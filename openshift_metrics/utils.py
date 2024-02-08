@@ -53,6 +53,34 @@ class EmptyResultError(Exception):
     """Raise when no results are retrieved for a query"""
 
 
+class ColdFrontClient(object):
+
+    def __init__(self, keycloak_url, keycloak_client_id, keycloak_client_secret):
+        self.session = self.get_session(keycloak_url,
+                                        keycloak_client_id,
+                                        keycloak_client_secret)
+
+    @staticmethod
+    def get_session(keycloak_url, keycloak_client_id, keycloak_client_secret):
+        """Authenticate as a client with Keycloak to receive an access token."""
+        token_url = f"{keycloak_url}/auth/realms/mss/protocol/openid-connect/token"
+
+        r = requests.post(
+            token_url,
+            data={"grant_type": "client_credentials"},
+            auth=requests.auth.HTTPBasicAuth(keycloak_client_id, keycloak_client_secret),
+        )
+        client_token = r.json()["access_token"]
+
+        session = requests.session()
+        headers = {
+            "Authorization": f"Bearer {client_token}",
+            "Content-Type": "application/json",
+        }
+        session.headers.update(headers)
+        return session
+
+
 def query_metric(openshift_url, token, metric, report_start_date, report_end_date):
     """Queries metric from prometheus/thanos for the provided openshift_url"""
     data = None
@@ -75,24 +103,32 @@ def query_metric(openshift_url, token, metric, report_start_date, report_end_dat
     return data
 
 
-def get_namespace_annotations():
+def get_namespace_attributes():
     """
-    Returns namespace annotations
-    Used for finding coldfront pi name and id
-    """
-    token = os.environ.get("OPENSHIFT_TOKEN")
-    api_url = os.environ.get("OPENSHIFT_API_URL")
+    Returns allocation attributes from coldfront associated
+    with all projects/namespaces.
 
-    if token is not None:
-        openshift.set_default_token(token)
-    if api_url is not None:
-        openshift.set_default_api_url(api_url)
+    Used for finding coldfront PI name and institution ID.
+    """
+    client = ColdFrontClient(
+        "https://keycloak.mss.mghpcc.org",
+        os.environ.get("CLIENT_ID"),
+        os.environ.get("CLIENT_SECRET")
+    )
+
+    coldfront_url = os.environ.get("COLDFRONT_URL",
+        "https://coldfront.mss.mghpcc.org/api/allocations?all=true")
+    responses = client.session.get(coldfront_url)
 
     namespaces_dict = {}
-    namespaces = openshift.selector("namespaces").objects()
-    for namespace in namespaces:
-        namespace_dict = namespace.as_dict()["metadata"]
-        namespaces_dict[namespace_dict["name"]] = namespace_dict["annotations"]
+
+    for response in responses.json():
+        project_name = response["attributes"].get("Allocated Project Name")
+        cf_pi = response["project"].get("pi", project_name)
+        cf_project_id = response["project"].get("id", 0)
+        institution_code = response["attributes"].get("Institution - Specific Code", "")
+        namespaces_dict[project_name] = { "cf_pi": cf_pi, "cf_project_id": cf_project_id, "institution_code": institution_code }
+
     return namespaces_dict
 
 
@@ -235,7 +271,7 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month):
     """
     metrics_by_namespace = {}
     rows = []
-    namespace_annotations = get_namespace_annotations()
+    namespace_annotations = get_namespace_attributes()
     headers = [
         "Invoice Month",
         "Project - Allocation",
@@ -257,12 +293,16 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month):
         namespace = pod_dict["namespace"]
         pod_metrics_dict = pod_dict["metrics"]
         namespace_annotation_dict = namespace_annotations.get(namespace, {})
-        cf_pi = namespace_annotation_dict.get("cf_pi", namespace)
+
+        cf_pi = namespace_annotation_dict.get("cf_pi")
+        cf_institution_code = namespace_annotation_dict.get("institution_code")
+
         gpu_type = pod_dict["gpu_type"]
 
         if namespace not in metrics_by_namespace:
             metrics_by_namespace[namespace] = {
                 "pi": cf_pi,
+                "cf_institution_code": cf_institution_code,
                 "_cpu_hours": 0,
                 "_memory_hours": 0,
                 "SU_CPU_HOURS": 0,
@@ -301,7 +341,7 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month):
                 "", #Invoice Email
                 "", #Invoice Address
                 "", #Institution
-                "", #Institution - Specific Code
+                metrics["cf_institution_code"],
                 str(math.ceil(metrics["SU_CPU_HOURS"])),
                 SU_CPU,
                 str(RATE.get(SU_CPU)),
@@ -318,7 +358,7 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month):
                 "", #Invoice Email
                 "", #Invoice Address
                 "", #Institution
-                "", #Institution - Specific Code
+                metrics["cf_institution_code"],
                 str(math.ceil(metrics["SU_A100_GPU_HOURS"])),
                 SU_A100_GPU,
                 str(RATE.get(SU_A100_GPU)),
@@ -335,7 +375,7 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month):
                 "", #Invoice Email
                 "", #Invoice Address
                 "", #Institution
-                "", #Institution - Specific Code
+                metrics["cf_institution_code"],
                 str(math.ceil(metrics["SU_A2_GPU_HOURS"])),
                 SU_A2_GPU,
                 str(RATE.get(SU_A2_GPU)),
@@ -352,7 +392,7 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month):
                 "", #Invoice Email
                 "", #Invoice Address
                 "", #Institution
-                "", #Institution - Specific Code
+                metrics["cf_institution_code"],
                 str(match.ceil(metrics["SU_V100_GPU_HOURS"])),
                 SU_V100_GPU,
                 str(RATE.get(SU_V100_GPU)),
@@ -369,7 +409,7 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month):
                 "", #Invoice Email
                 "", #Invoice Address
                 "", #Institution
-                "", #Institution - Specific Code
+                metrics["cf_institution_code"],
                 str(math.ceil(metrics["SU_UNKNOWN_GPU_HOURS"])),
                 SU_UNKNOWN_GPU,
                 str(RATE.get(SU_UNKNOWN_GPU)),
@@ -387,7 +427,7 @@ def write_metrics_by_pod(metrics_dict, file_name):
     as we are calculating the CPU/Memory service units at the project level
     """
     rows = []
-    namespace_annotations = get_namespace_annotations()
+    namespace_annotations = get_namespace_attributes()
     headers = [
         "Namespace",
         "Coldfront_PI Name",
@@ -411,8 +451,8 @@ def write_metrics_by_pod(metrics_dict, file_name):
         pod_metrics_dict = pod_dict["metrics"]
         gpu_type = pod_dict["gpu_type"]
         namespace_annotation_dict = namespace_annotations.get(namespace, {})
-        cf_pi = namespace_annotation_dict.get("cf_pi", namespace)
-        cf_project_id = namespace_annotation_dict.get("cf_project_id", 1)
+        cf_pi = namespace_annotation_dict.get("cf_pi")
+        cf_project_id = namespace_annotation_dict.get("cf_project_id")
 
         for epoch_time, pod_metric_dict in pod_metrics_dict.items():
             start_time = datetime.datetime.utcfromtimestamp(float(epoch_time)).strftime(
