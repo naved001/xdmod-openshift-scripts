@@ -117,7 +117,7 @@ def get_namespace_attributes():
     )
 
     coldfront_url = os.environ.get("COLDFRONT_URL",
-        "https://coldfront.mss.mghpcc.org/api/allocations")
+        "https://coldfront.mss.mghpcc.org/api/allocations?all=true")
     responses = client.session.get(coldfront_url)
 
     namespaces_dict = {}
