@@ -19,8 +19,6 @@ import os
 import sys
 import json
 
-import openshift
-
 import utils
 
 
@@ -72,9 +70,6 @@ def main():
 
 
     token = os.environ.get("OPENSHIFT_TOKEN")
-
-    if token is None:
-        token = openshift.get_auth_token()
 
     metrics_dict = {}
     metrics_dict["start_date"] = report_start_date

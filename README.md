@@ -9,15 +9,13 @@ This was a fork of https://github.com/OCP-on-NERC/xdmod-openshift-scripts
 
 ## Usage
 
-In order to run the scripts, you need to run `oc login` or set the following environment variables:
+In order to run the scripts, you need to set the following environment variables:
 
-- `OPENSHIFT_TOKEN` for both scripts.
-- `OPENSHIFT_API_URL=https://api.shift.nerc.mghpcc.org:6443` for `merge.py`.
+- `OPENSHIFT_TOKEN` for `openshift_prometheus_metrics.py` when collecting metrics from thanos/prometheus.
+- Keycloak `CLIENT_ID` and `CLIENT_SECRET`, `COLDFRONT_URL` (defaults to MGHPCC coldfront) for `merge.py`.
 
 We are using the token for `xdmod-reader` service account in `xdmod-reader` namespace on nerc-prod cluster. You can extract the token with:
 `oc get secrets -n xdmod-reader --as system:admin xdmod-reader-token-m6s2m -o yaml | yq .data.token -r |base64 -d` .
-
-Note that if you are logged in with `oc login` then you don't need to manually set the OPENSHIFT_TOKEN or OPENSHIFT_API_URL.
 
 When running the scripts, there are two methods of specifying the OpenShift Prometheus
 endpoint. The first is through an environment variable:
