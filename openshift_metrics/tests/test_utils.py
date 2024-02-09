@@ -50,7 +50,7 @@ class TestGetNamespaceAnnotations(TestCase):
             {
                 "attributes": {
                     "Allocated Project Name": "Project 1",
-                    "Institution - Specific Code": "123"
+                    "Institution-Specific Code": "123"
                 },
                 "project": {
                     "pi": "PI 1",
@@ -60,7 +60,7 @@ class TestGetNamespaceAnnotations(TestCase):
             {
                 "attributes": {
                     "Allocated Project Name": "Project 2",
-                    "Institution - Specific Code": "456"
+                    "Institution-Specific Code": "456"
                 },
                 "project": {
                     "pi": "PI 2",

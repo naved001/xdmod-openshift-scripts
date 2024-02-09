@@ -124,7 +124,7 @@ def get_namespace_attributes():
         project_name = response["attributes"].get("Allocated Project Name")
         cf_pi = response["project"].get("pi", project_name)
         cf_project_id = response["project"].get("id", 0)
-        institution_code = response["attributes"].get("Institution - Specific Code", "")
+        institution_code = response["attributes"].get("Institution-Specific Code", "")
         namespaces_dict[project_name] = { "cf_pi": cf_pi, "cf_project_id": cf_project_id, "institution_code": institution_code }
 
     return namespaces_dict
