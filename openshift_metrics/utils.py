@@ -101,21 +101,34 @@ def upload_to_s3(file, bucket, location):
 
 def query_metric(openshift_url, token, metric, report_start_date, report_end_date):
     """Queries metric from prometheus/thanos for the provided openshift_url"""
+    retries = 3
+    connection_errors = 0
+
     data = None
     headers = {"Authorization": f"Bearer {token}"}
     day_url_vars = f"start={report_start_date}T00:00:00Z&end={report_end_date}T23:59:59Z"
     print(f"Retrieving metric: {metric}")
-    for _ in range(3):
-        url = f"{openshift_url}/api/v1/query_range?query={metric}&{day_url_vars}&step={STEP_MIN}m"
-        response = requests.get(url, headers=headers, verify=True)
-        if response.status_code != 200:
-            print(f"{response.status_code} Response: {response.reason}")
-        else:
-            data = response.json()["data"]["result"]
-            if data:
-                break
-            print("Empty result set")
+    url = f"{openshift_url}/api/v1/query_range?query={metric}&{day_url_vars}&step={STEP_MIN}m"
+
+    for _ in range(retries):
+        try:
+            response = requests.get(url, headers=headers, verify=True)
+
+            if response.status_code != 200:
+                print(f"{response.status_code} Response: {response.reason}")
+            else:
+                data = response.json()["data"]["result"]
+                if data:
+                    break
+                print("Empty result set")
+        except requests.exceptions.ConnectionError:
+            connection_errors += 1
+            print("Connection Error " + str(connection_errors))
+            if connection_errors == retries:
+                raise
+
         time.sleep(3)
+
     if not data:
         raise EmptyResultError(f"Error retrieving metric: {metric}")
     return data
