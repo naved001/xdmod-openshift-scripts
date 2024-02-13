@@ -19,7 +19,7 @@ import os
 
 class TestQueryMetric(TestCase):
 
-    @mock.patch('requests.get')
+    @mock.patch('requests.Session.get')
     @mock.patch('time.sleep')
     def test_query_metric(self, mock_sleep, mock_get):
         mock_response = mock.Mock(status_code=200)
@@ -28,40 +28,27 @@ class TestQueryMetric(TestCase):
         }}
         mock_get.return_value = mock_response
 
-        metrics = utils.query_metric('fake-url', 'fake-token', 'fake-metric', '2022-03-14', '2022-03-14')
+        metrics = utils.query_metric('https://fake-url', 'fake-token', 'fake-metric', '2022-03-14', '2022-03-14')
         self.assertEqual(metrics, "this is data")
         self.assertEqual(mock_get.call_count, 1)
 
-    @mock.patch('requests.get')
+    @mock.patch('requests.Session.get')
     @mock.patch('time.sleep')
     def test_query_metric_exception(self, mock_sleep, mock_get):
         mock_get.return_value = mock.Mock(status_code=404)
 
-        self.assertRaises(Exception, utils.query_metric, 'fake-url', 'fake-token',
+        self.assertRaises(Exception, utils.query_metric, 'https://fake-url', 'fake-token',
                           'fake-metric', '2022-03-14', '2022-03-14')
         self.assertEqual(mock_get.call_count, 3)
 
-    @mock.patch('requests.get')
+    @mock.patch('requests.Session.get')
     @mock.patch('time.sleep')
     def test_query_metric_connection_error(self, mock_sleep, mock_get):
-        mock_get.side_effect = [ConnectionError] * 3
-        self.assertRaises(ConnectionError, utils.query_metric, 'fake-url', 'fake-token',
+        mock_get.side_effect = [ConnectionError]
+        self.assertRaises(ConnectionError, utils.query_metric, 'https://fake-url', 'fake-token',
                   'fake-metric', '2022-03-14', '2022-03-14')
-        self.assertEqual(mock_get.call_count, 3)
+        self.assertEqual(mock_get.call_count, 1)
 
-    @mock.patch('requests.get')
-    @mock.patch('time.sleep')
-    def test_query_metric_connection_error_success(self, mock_sleep, mock_get):
-        mock_response = mock.Mock(status_code=200)
-        mock_response.json.return_value = {"data": {
-            "result": "this is data"
-        }}
-        mock_get.return_value = mock_response
-
-        # Raise ConnectionError once and then succeed
-        mock_get.side_effect = [ConnectionError] + [mock.DEFAULT]
-        utils.query_metric('fake-url', 'fake-token', 'fake-metric', '2022-03-14', '2022-03-14')
-        self.assertEqual(mock_get.call_count, 2)
 
 class TestGetNamespaceAnnotations(TestCase):
 
