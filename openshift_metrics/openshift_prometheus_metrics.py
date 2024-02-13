@@ -46,6 +46,10 @@ def main():
         help="report date (ex: 2022-03-14)",
         default=(datetime.today() - timedelta(days=1)).strftime('%Y-%m-%d')
     )
+    parser.add_argument(
+        "--upload-to-s3",
+        action="store_true"
+    )
     parser.add_argument("--output-file")
 
     args = parser.parse_args()
@@ -103,6 +107,9 @@ def main():
 
     with open(output_file, "w") as file:
         json.dump(metrics_dict, file)
+
+    if args.upload_to_s3:
+        utils.upload_to_s3(output_file, "openshift-metrics", output_file)
 
 
 if __name__ == "__main__":

@@ -21,6 +21,10 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("files", nargs="+")
     parser.add_argument("--output-file")
+    parser.add_argument(
+        "--upload-to-s3",
+        action="store_true"
+    )
     args = parser.parse_args()
     files = args.files
 
@@ -75,6 +79,24 @@ def main():
     )
     utils.write_metrics_by_pod(condensed_metrics_dict, "pod-" + output_file)
 
+    if args.upload_to_s3:
+        primary_location = (
+            f"Invoices/{report_month}/"
+            f"Service Invoices/NERC OpenShift {report_month}.csv"
+        )
+        utils.upload_to_s3(output_file, "nerc-invoicing", primary_location)
+
+        timestamp = datetime.utcnow().strftime('%Y%m%dT%H%M%SZ')
+        secondary_location = (
+            f"Invoices/{report_month}/"
+            f"Archive/NERC OpenShift {report_month} {timestamp}.csv"
+        )
+        utils.upload_to_s3(output_file, "nerc-invoicing", secondary_location)
+        pod_report = (
+            f"Invoices/{report_month}/"
+            f"Archive/Pod-NERC OpenShift {report_month} {timestamp}.csv"
+        )
+        utils.upload_to_s3("pod-" + output_file, "nerc-invoicing", pod_report)
 
 if __name__ == "__main__":
     main()

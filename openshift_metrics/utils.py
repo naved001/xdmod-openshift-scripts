@@ -19,6 +19,7 @@ import time
 import math
 import csv
 import requests
+import boto3
 
 
 # GPU types
@@ -77,6 +78,25 @@ class ColdFrontClient(object):
         }
         session.headers.update(headers)
         return session
+
+
+def upload_to_s3(file, bucket, location):
+    s3_endpoint = os.getenv("S3_OUTPUT_ENDPOINT_URL",
+                            "https://s3.us-east-005.backblazeb2.com")
+    s3_key_id = os.getenv("S3_OUTPUT_ACCESS_KEY_ID")
+    s3_secret = os.getenv("S3_OUTPUT_SECRET_ACCESS_KEY")
+
+    if not s3_key_id or not s3_secret:
+        raise Exception("Must provide S3_OUTPUT_ACCESS_KEY_ID and"
+                        " S3_OUTPUT_SECRET_ACCESS_KEY environment variables.")
+    s3 = boto3.client(
+        "s3",
+        endpoint_url=s3_endpoint,
+        aws_access_key_id=s3_key_id,
+        aws_secret_access_key=s3_secret,
+    )
+
+    response = s3.upload_file(file, Bucket=bucket, Key=location)
 
 
 def query_metric(openshift_url, token, metric, report_start_date, report_end_date):
