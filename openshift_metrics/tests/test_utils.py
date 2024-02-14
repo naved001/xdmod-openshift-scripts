@@ -10,7 +10,7 @@
 #   License for the specific language governing permissions and limitations
 #   under the License.
 #
-
+from requests.exceptions import ConnectionError
 import tempfile
 from unittest import TestCase, mock
 
@@ -19,7 +19,7 @@ import os
 
 class TestQueryMetric(TestCase):
 
-    @mock.patch('requests.get')
+    @mock.patch('requests.Session.get')
     @mock.patch('time.sleep')
     def test_query_metric(self, mock_sleep, mock_get):
         mock_response = mock.Mock(status_code=200)
@@ -28,18 +28,27 @@ class TestQueryMetric(TestCase):
         }}
         mock_get.return_value = mock_response
 
-        metrics = utils.query_metric('fake-url', 'fake-token', 'fake-metric', '2022-03-14', '2022-03-14')
+        metrics = utils.query_metric('https://fake-url', 'fake-token', 'fake-metric', '2022-03-14', '2022-03-14')
         self.assertEqual(metrics, "this is data")
         self.assertEqual(mock_get.call_count, 1)
 
-    @mock.patch('requests.get')
+    @mock.patch('requests.Session.get')
     @mock.patch('time.sleep')
     def test_query_metric_exception(self, mock_sleep, mock_get):
         mock_get.return_value = mock.Mock(status_code=404)
 
-        self.assertRaises(Exception, utils.query_metric, 'fake-url', 'fake-token',
+        self.assertRaises(Exception, utils.query_metric, 'https://fake-url', 'fake-token',
                           'fake-metric', '2022-03-14', '2022-03-14')
         self.assertEqual(mock_get.call_count, 3)
+
+    @mock.patch('requests.Session.get')
+    @mock.patch('time.sleep')
+    def test_query_metric_connection_error(self, mock_sleep, mock_get):
+        mock_get.side_effect = [ConnectionError]
+        self.assertRaises(ConnectionError, utils.query_metric, 'https://fake-url', 'fake-token',
+                  'fake-metric', '2022-03-14', '2022-03-14')
+        self.assertEqual(mock_get.call_count, 1)
+
 
 class TestGetNamespaceAnnotations(TestCase):
 
