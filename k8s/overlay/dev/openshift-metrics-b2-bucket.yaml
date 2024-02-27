@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: openshift-metrics-b2-bucket
+type: Opaque
+data:
+  access-key-id: 1234
+  secret-access-key: secret
