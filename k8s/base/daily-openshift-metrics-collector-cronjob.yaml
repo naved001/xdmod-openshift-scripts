@@ -1,0 +1,39 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: daily-openshift-metrics-collector
+spec:
+  schedule: "0 12 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: daily-openshift-metrics-collector
+            image: ghcr.io/cci-moc/openshift-usage-scripts:latest
+            env:
+            - name: OPENSHIFT_PROMETHEUS_URL
+              value: "https://thanos-querier-openshift-monitoring.apps.shift.nerc.mghpcc.org"
+            - name: OPENSHIFT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: metrics-reader
+                  key: token
+            - name: S3_OUTPUT_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: openshift-metrics-b2-bucket
+                  key: access-key-id
+            - name: S3_OUTPUT_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: openshift-metrics-b2-bucket
+                  key: secret-access-key
+            volumeMounts:
+            - name: data-volume
+              mountPath: /data
+            command: ["/bin/sh", "-c", "cd /data && python /app/openshift_metrics/openshift_prometheus_metrics.py --upload-to-s3"]
+          volumes:
+          - name: data-volume
+            emptyDir: {}
+          restartPolicy: OnFailure
