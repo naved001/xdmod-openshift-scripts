@@ -1,0 +1,66 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: produce-report
+spec:
+  schedule: "0 13 1 * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: daily-openshift-metrics-collector
+            image: ghcr.io/cci-moc/openshift-usage-scripts:main
+            env:
+            - name: S3_OUTPUT_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: nerc-invoices-b2-bucket
+                  key: access-key-id
+            - name: S3_OUTPUT_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: nerc-invoices-b2-bucket
+                  key: secret-access-key
+            - name: CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-client
+                  key: client-id
+            - name: CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-client
+                  key: client-secret
+            volumeMounts:
+            - name: data-volume
+              mountPath: /data
+            command: ["/bin/sh", "-c", "cd /data && python /app/openshift_metrics/merge.py /data/*.json --upload-to-s3"]
+          initContainers:
+            - name: download-metrics
+              image: amazon/aws-cli
+              command: ["/bin/sh", "-c", "/script/script.sh"]
+              env:
+              - name: AWS_ACCESS_KEY_ID
+                valueFrom:
+                  secretKeyRef:
+                    name: openshift-metrics-b2-bucket
+                    key: access-key-id
+              - name: AWS_SECRET_ACCESS_KEY
+                valueFrom:
+                  secretKeyRef:
+                    name: openshift-metrics-b2-bucket
+                    key: secret-access-key
+              volumeMounts:
+                - name: data-volume
+                  mountPath: /data
+                - name: metrics-downloader
+                  mountPath: /script
+          volumes:
+          - name: data-volume
+            emptyDir: {}
+          - name: metrics-downloader
+            configMap:
+              name: metrics-downloader
+              defaultMode: 0555
+          restartPolicy: OnFailure
