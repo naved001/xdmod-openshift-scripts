@@ -173,6 +173,7 @@ class TestMergeMetrics(TestCase):
                 "metric": {
                     "pod": "pod1",
                     "namespace": "namespace1",
+                    "resource": "cpu",
                 },
                 "values": [
                     [0, 100],
@@ -183,7 +184,8 @@ class TestMergeMetrics(TestCase):
             {
                 "metric": {
                     "pod": "pod2",
-                    "namespace": "namespace1"
+                    "namespace": "namespace1",
+                    "resource": "cpu",
                 },
                 "values": [
                     [60, 300],
@@ -675,6 +677,12 @@ class TestGetServiceUnit(TestCase):
     def test_known_gpu(self):
         su_type, su_count, determining_resource = utils.get_service_unit(24, 74, 1, utils.GPU_A100)
         self.assertEqual(su_type, utils.SU_A100_GPU)
+        self.assertEqual(su_count, 1)
+        self.assertEqual(determining_resource, "GPU")
+
+    def test_known_gpu_A100_SXM4(self):
+        su_type, su_count, determining_resource = utils.get_service_unit(32, 245, 1, utils.GPU_A100_SXM4)
+        self.assertEqual(su_type, utils.SU_A100_SXM4_GPU)
         self.assertEqual(su_count, 1)
         self.assertEqual(determining_resource, "GPU")
 

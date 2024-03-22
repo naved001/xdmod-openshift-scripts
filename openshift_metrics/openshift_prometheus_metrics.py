@@ -24,7 +24,10 @@ import utils
 
 CPU_REQUEST = 'kube_pod_resource_request{unit="cores"} unless on(pod, namespace) kube_pod_status_unschedulable'
 MEMORY_REQUEST = 'kube_pod_resource_request{unit="bytes"} unless on(pod, namespace) kube_pod_status_unschedulable'
-GPU_REQUEST = 'kube_pod_resource_request{resource=~".*gpu.*"} unless on(pod, namespace) kube_pod_status_unschedulable'
+
+# For GPU requests, we don't need to exclude unscheduled pods because the join on node will eliminate those as unscheduled
+# pods don't have a node value
+GPU_REQUEST = 'kube_pod_resource_request{resource=~".*gpu.*"} * on(node) group_left(label_nvidia_com_gpu_product) kube_node_labels'
 
 
 def main():
