@@ -28,7 +28,6 @@ from requests.adapters import HTTPAdapter
 GPU_A100 = "NVIDIA-A100-40GB"
 GPU_A100_SXM4 = "NVIDIA-A100-SXM4-40GB"
 GPU_V100 = "Tesla-V100-PCIE-32GB"
-GPU_A2 = "nvidia.com/gpu_A2"
 GPU_GENERIC = "nvidia.com/gpu"
 NO_GPU = "No GPU"
 
@@ -36,7 +35,6 @@ NO_GPU = "No GPU"
 SU_CPU = "OpenShift CPU"
 SU_A100_GPU = "OpenShift GPUA100"
 SU_A100_SXM4_GPU = "OpenShift GPUA100SXM4"
-SU_A2_GPU = "OpenShift GPUA2"
 SU_V100_GPU = "OpenShift GPUV100"
 SU_UNKNOWN_GPU = "OpenShift Unknown GPU"
 SU_UNKNOWN = "Openshift Unknown"
@@ -45,7 +43,6 @@ RATE = {
     SU_CPU: 0.013,
     SU_A100_GPU: 1.803,
     SU_A100_SXM4_GPU: 2.078,
-    SU_A2_GPU: 0.466,
     SU_V100_GPU: 1.214,
     SU_UNKNOWN_GPU: 0,
 }
@@ -358,7 +355,6 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month):
                 "SU_CPU_HOURS": 0,
                 "SU_A100_GPU_HOURS": 0,
                 "SU_A100_SXM4_GPU_HOURS": 0,
-                "SU_A2_GPU_HOURS": 0,
                 "SU_V100_GPU_HOURS": 0,
                 "SU_UNKNOWN_GPU_HOURS": 0,
                 "total_cost": 0,
@@ -378,8 +374,6 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month):
                 metrics_by_namespace[namespace]["SU_A100_SXM4_GPU_HOURS"] += su_count * duration_in_hours
             elif gpu_type == GPU_V100:
                 metrics_by_namespace[namespace]["SU_V100_GPU_HOURS"] += su_count * duration_in_hours
-            elif gpu_type == GPU_A2:
-                metrics_by_namespace[namespace]["SU_A2_GPU_HOURS"] += su_count * duration_in_hours
             elif gpu_type == GPU_GENERIC:
                 metrics_by_namespace[namespace]["SU_UNKNOWN_GPU_HOURS"] += su_count * duration_in_hours
             else:
@@ -403,9 +397,6 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month):
 
         if metrics["SU_A100_SXM4_GPU_HOURS"] != 0:
             add_row(hours=metrics["SU_A100_SXM4_GPU_HOURS"], su_type=SU_A100_SXM4_GPU, **common_args)
-
-        if metrics["SU_A2_GPU_HOURS"] != 0:
-            add_row(hours=metrics["SU_A2_GPU_HOURS"], su_type=SU_A2_GPU, **common_args)
 
         if metrics["SU_V100_GPU_HOURS"] != 0:
             add_row(hours=metrics["SU_V100_GPU_HOURS"], su_type=SU_V100_GPU, **common_args)
