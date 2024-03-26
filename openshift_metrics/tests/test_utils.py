@@ -173,6 +173,7 @@ class TestMergeMetrics(TestCase):
                 "metric": {
                     "pod": "pod1",
                     "namespace": "namespace1",
+                    "resource": "cpu",
                 },
                 "values": [
                     [0, 100],
@@ -183,7 +184,8 @@ class TestMergeMetrics(TestCase):
             {
                 "metric": {
                     "pod": "pod2",
-                    "namespace": "namespace1"
+                    "namespace": "namespace1",
+                    "resource": "cpu",
                 },
                 "values": [
                     [60, 300],
@@ -641,7 +643,7 @@ class TestWriteMetricsByNamespace(TestCase):
             },
             "pod5": {
                 "namespace": "namespace2",
-                "gpu_type": utils.GPU_A2,
+                "gpu_type": utils.GPU_A100_SXM4,
                 "metrics": {
                     0: {
                         "cpu_request": 24,
@@ -657,7 +659,7 @@ class TestWriteMetricsByNamespace(TestCase):
                             "2023-01,namespace1,namespace1,PI1,,,,76,1128,OpenShift CPU,0.013,14.66\n"
                             "2023-01,namespace2,namespace2,PI2,,,,,96,OpenShift CPU,0.013,1.25\n"
                             "2023-01,namespace2,namespace2,PI2,,,,,48,OpenShift GPUA100,1.803,86.54\n"
-                            "2023-01,namespace2,namespace2,PI2,,,,,144,OpenShift GPUA2,0.466,67.1\n")
+                            "2023-01,namespace2,namespace2,PI2,,,,,48,OpenShift GPUA100SXM4,2.078,99.74\n")
 
         with tempfile.NamedTemporaryFile(mode="w+") as tmp:
             utils.write_metrics_by_namespace(test_metrics_dict, tmp.name, "2023-01")
@@ -675,6 +677,12 @@ class TestGetServiceUnit(TestCase):
     def test_known_gpu(self):
         su_type, su_count, determining_resource = utils.get_service_unit(24, 74, 1, utils.GPU_A100)
         self.assertEqual(su_type, utils.SU_A100_GPU)
+        self.assertEqual(su_count, 1)
+        self.assertEqual(determining_resource, "GPU")
+
+    def test_known_gpu_A100_SXM4(self):
+        su_type, su_count, determining_resource = utils.get_service_unit(32, 245, 1, utils.GPU_A100_SXM4)
+        self.assertEqual(su_type, utils.SU_A100_SXM4_GPU)
         self.assertEqual(su_count, 1)
         self.assertEqual(determining_resource, "GPU")
 

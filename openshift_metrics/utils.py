@@ -25,16 +25,16 @@ from urllib3.util.retry import Retry
 from requests.adapters import HTTPAdapter
 
 # GPU types
-GPU_A100 = "nvidia.com/gpu_A100"
-GPU_A2 = "nvidia.com/gpu_A2"
-GPU_V100 = "nvidia.com/gpu_V100"
+GPU_A100 = "NVIDIA-A100-40GB"
+GPU_A100_SXM4 = "NVIDIA-A100-SXM4-40GB"
+GPU_V100 = "Tesla-V100-PCIE-32GB"
 GPU_GENERIC = "nvidia.com/gpu"
 NO_GPU = "No GPU"
 
 # SU Types
 SU_CPU = "OpenShift CPU"
 SU_A100_GPU = "OpenShift GPUA100"
-SU_A2_GPU = "OpenShift GPUA2"
+SU_A100_SXM4_GPU = "OpenShift GPUA100SXM4"
 SU_V100_GPU = "OpenShift GPUV100"
 SU_UNKNOWN_GPU = "OpenShift Unknown GPU"
 SU_UNKNOWN = "Openshift Unknown"
@@ -42,7 +42,7 @@ SU_UNKNOWN = "Openshift Unknown"
 RATE = {
     SU_CPU: 0.013,
     SU_A100_GPU: 1.803,
-    SU_A2_GPU: 0.466,
+    SU_A100_SXM4_GPU: 2.078,
     SU_V100_GPU: 1.214,
     SU_UNKNOWN_GPU: 0,
 }
@@ -180,7 +180,7 @@ def get_service_unit(cpu_count, memory_count, gpu_count, gpu_type):
 
     known_gpu_su = {
         GPU_A100: SU_A100_GPU,
-        GPU_A2: SU_A2_GPU,
+        GPU_A100_SXM4: SU_A100_SXM4_GPU,
         GPU_V100: SU_V100_GPU,
         GPU_GENERIC: SU_UNKNOWN_GPU,
     }
@@ -189,8 +189,8 @@ def get_service_unit(cpu_count, memory_count, gpu_count, gpu_type):
     su_config = {
         SU_CPU: {"gpu": -1, "cpu": 1, "ram": 4},
         SU_A100_GPU: {"gpu": 1, "cpu": 24, "ram": 74},
+        SU_A100_SXM4_GPU: {"gpu": 1, "cpu": 32, "ram": 245},
         SU_V100_GPU: {"gpu": 1, "cpu": 24, "ram": 192},
-        SU_A2_GPU: {"gpu": 1, "cpu": 8, "ram": 64},
         SU_UNKNOWN_GPU: {"gpu": 1, "cpu": 8, "ram": 64},
         SU_UNKNOWN: {"gpu": -1, "cpu": 1, "ram": 1},
     }
@@ -227,9 +227,10 @@ def merge_metrics(metric_name, metric_list, output_dict):
         if pod not in output_dict:
             output_dict[pod] = {"namespace": metric["metric"]["namespace"], "metrics": {}}
 
-        gpu_type = metric["metric"].get("resource", NO_GPU)
-        if gpu_type not in ["cpu", "memory"]:
-            output_dict[pod]["gpu_type"] = gpu_type
+        resource = metric["metric"].get("resource")
+
+        if resource not in ["cpu", "memory"]:
+            output_dict[pod]["gpu_type"] = metric["metric"].get("label_nvidia_com_gpu_product", GPU_GENERIC)
         else:
             output_dict[pod]["gpu_type"] = NO_GPU
 
@@ -293,6 +294,24 @@ def csv_writer(rows, file_name):
         csvwriter.writerows(rows)
 
 
+def add_row(rows, report_month, namespace, pi, institution_code, hours, su_type):
+
+    row = [
+        report_month,
+        namespace,
+        namespace,
+        pi,
+        "", #Invoice Email
+        "", #Invoice Address
+        "", #Institution
+        institution_code,
+        str(math.ceil(hours)),
+        su_type,
+        RATE.get(su_type),
+        str(round(RATE.get(su_type) * math.ceil(hours), 2))
+    ]
+    rows.append(row)
+
 def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month):
     """
     Process metrics dictionary to aggregate usage by namespace and then write that to a file
@@ -335,7 +354,7 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month):
                 "_memory_hours": 0,
                 "SU_CPU_HOURS": 0,
                 "SU_A100_GPU_HOURS": 0,
-                "SU_A2_GPU_HOURS": 0,
+                "SU_A100_SXM4_GPU_HOURS": 0,
                 "SU_V100_GPU_HOURS": 0,
                 "SU_UNKNOWN_GPU_HOURS": 0,
                 "total_cost": 0,
@@ -351,8 +370,10 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month):
 
             if gpu_type == GPU_A100:
                 metrics_by_namespace[namespace]["SU_A100_GPU_HOURS"] += su_count * duration_in_hours
-            elif gpu_type == GPU_A2:
-                metrics_by_namespace[namespace]["SU_A2_GPU_HOURS"] += su_count * duration_in_hours
+            elif gpu_type == GPU_A100_SXM4:
+                metrics_by_namespace[namespace]["SU_A100_SXM4_GPU_HOURS"] += su_count * duration_in_hours
+            elif gpu_type == GPU_V100:
+                metrics_by_namespace[namespace]["SU_V100_GPU_HOURS"] += su_count * duration_in_hours
             elif gpu_type == GPU_GENERIC:
                 metrics_by_namespace[namespace]["SU_UNKNOWN_GPU_HOURS"] += su_count * duration_in_hours
             else:
@@ -360,90 +381,29 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month):
 
     for namespace, metrics in metrics_by_namespace.items():
 
+        common_args = {
+            "rows": rows,
+            "report_month": report_month,
+            "namespace": namespace,
+            "pi": metrics["pi"],
+            "institution_code": metrics["cf_institution_code"]
+        }
+
         if metrics["SU_CPU_HOURS"] != 0:
-            row = [
-                report_month,
-                namespace,
-                namespace,
-                metrics["pi"],
-                "", #Invoice Email
-                "", #Invoice Address
-                "", #Institution
-                metrics["cf_institution_code"],
-                str(math.ceil(metrics["SU_CPU_HOURS"])),
-                SU_CPU,
-                str(RATE.get(SU_CPU)),
-                str(round(RATE.get(SU_CPU) * math.ceil(metrics["SU_CPU_HOURS"]), 2))
-            ]
-            rows.append(row)
+            add_row(hours=metrics["SU_CPU_HOURS"], su_type=SU_CPU, **common_args)
 
         if metrics["SU_A100_GPU_HOURS"] != 0:
-            row = [
-                report_month,
-                namespace,
-                namespace,
-                metrics["pi"],
-                "", #Invoice Email
-                "", #Invoice Address
-                "", #Institution
-                metrics["cf_institution_code"],
-                str(math.ceil(metrics["SU_A100_GPU_HOURS"])),
-                SU_A100_GPU,
-                str(RATE.get(SU_A100_GPU)),
-                str(round(RATE.get(SU_A100_GPU) * math.ceil(metrics["SU_A100_GPU_HOURS"]), 2))
-            ]
-            rows.append(row)
+            add_row(hours=metrics["SU_A100_GPU_HOURS"], su_type=SU_A100_GPU, **common_args)
 
-        if metrics["SU_A2_GPU_HOURS"] != 0:
-            row = [
-                report_month,
-                namespace,
-                namespace,
-                metrics["pi"],
-                "", #Invoice Email
-                "", #Invoice Address
-                "", #Institution
-                metrics["cf_institution_code"],
-                str(math.ceil(metrics["SU_A2_GPU_HOURS"])),
-                SU_A2_GPU,
-                str(RATE.get(SU_A2_GPU)),
-                str(round(RATE.get(SU_A2_GPU) * math.ceil(metrics["SU_A2_GPU_HOURS"]), 2))
-            ]
-            rows.append(row)
+        if metrics["SU_A100_SXM4_GPU_HOURS"] != 0:
+            add_row(hours=metrics["SU_A100_SXM4_GPU_HOURS"], su_type=SU_A100_SXM4_GPU, **common_args)
 
         if metrics["SU_V100_GPU_HOURS"] != 0:
-            row = [
-                report_month,
-                namespace,
-                namespace,
-                metrics["pi"],
-                "", #Invoice Email
-                "", #Invoice Address
-                "", #Institution
-                metrics["cf_institution_code"],
-                str(match.ceil(metrics["SU_V100_GPU_HOURS"])),
-                SU_V100_GPU,
-                str(RATE.get(SU_V100_GPU)),
-                str(round(RATE.get(SU_V100_GPU) * match.ceil(metrics["SU_V100_GPU_HOURS"]), 2))
-            ]
-            rows.append(row)
+            add_row(hours=metrics["SU_V100_GPU_HOURS"], su_type=SU_V100_GPU, **common_args)
 
         if metrics["SU_UNKNOWN_GPU_HOURS"] != 0:
-            row = [
-                report_month,
-                namespace,
-                namespace,
-                metrics["pi"],
-                "", #Invoice Email
-                "", #Invoice Address
-                "", #Institution
-                metrics["cf_institution_code"],
-                str(math.ceil(metrics["SU_UNKNOWN_GPU_HOURS"])),
-                SU_UNKNOWN_GPU,
-                str(RATE.get(SU_UNKNOWN_GPU)),
-                str(RATE.get(SU_UNKNOWN_GPU) * math.ceil(metrics["SU_UNKNOWN_GPU_HOURS"])) #Cost
-            ]
-            rows.append(row)
+            add_row(hours=metrics["SU_UNKNOWN_GPU_HOURS"], su_type=SU_UNKNOWN_GPU, **common_args)
+
     csv_writer(rows, file_name)
 
 
