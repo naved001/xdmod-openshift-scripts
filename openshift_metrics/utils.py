@@ -221,24 +221,31 @@ def get_service_unit(cpu_count, memory_count, gpu_count, gpu_type):
 
 
 def merge_metrics(metric_name, metric_list, output_dict):
-    """Merge metrics by pod"""
+    """
+    Merge metrics by pod but since pod names aren't guaranteed to be unique across
+    namespaces, we combine the namespace and podname together when generating the
+    output dictionary so it contains all pods.
+    """
+
     for metric in metric_list:
         pod = metric["metric"]["pod"]
-        if pod not in output_dict:
-            output_dict[pod] = {"namespace": metric["metric"]["namespace"], "metrics": {}}
+        namespace = metric["metric"]["namespace"]
+        unique_name = namespace + "+" + pod
+        if unique_name not in output_dict:
+            output_dict[unique_name] = {"namespace": metric["metric"]["namespace"], "metrics": {}}
 
         resource = metric["metric"].get("resource")
 
         if resource not in ["cpu", "memory"]:
-            output_dict[pod]["gpu_type"] = metric["metric"].get("label_nvidia_com_gpu_product", GPU_GENERIC)
+            output_dict[unique_name]["gpu_type"] = metric["metric"].get("label_nvidia_com_gpu_product", GPU_GENERIC)
         else:
-            output_dict[pod]["gpu_type"] = NO_GPU
+            output_dict[unique_name]["gpu_type"] = NO_GPU
 
         for value in metric["values"]:
             epoch_time = value[0]
-            if epoch_time not in output_dict[pod]["metrics"]:
-                output_dict[pod]["metrics"][epoch_time] = {}
-            output_dict[pod]["metrics"][epoch_time][metric_name] = value[1]
+            if epoch_time not in output_dict[unique_name]["metrics"]:
+                output_dict[unique_name]["metrics"][epoch_time] = {}
+            output_dict[unique_name]["metrics"][epoch_time][metric_name] = value[1]
     return output_dict
 
 
@@ -475,4 +482,5 @@ def write_metrics_by_pod(metrics_dict, file_name):
             ]
 
             rows.append(info_list)
+
     csv_writer(rows, file_name)
