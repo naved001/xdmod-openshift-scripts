@@ -252,8 +252,37 @@ def merge_metrics(metric_name, metric_list, output_dict):
 def condense_metrics(input_metrics_dict, metrics_to_check):
     """
     Checks if the value of metrics is the same, and removes redundant
-    metrics while updating the duration
+    metrics while updating the duration. If there's a gap in the reported
+    metrics then don't count that as part of duration.
+
+    Here's a sample input dictionary in which I have separated missing metrics
+    or different metrics by empty lines.
+
+    {'naved-test+test-pod': {'gpu_type': 'No GPU',
+                         'metrics': {1711741500: {'cpu_request': '1',
+                                                  'memory_request': '3221225472'},
+                                     1711742400: {'cpu_request': '1',
+                                                  'memory_request': '3221225472'},
+                                     1711743300: {'cpu_request': '1',
+                                                  'memory_request': '3221225472'},
+                                     1711744200: {'cpu_request': '1',
+                                                  'memory_request': '3221225472'},
+
+                                     1711746000: {'cpu_request': '1',
+                                                  'memory_request': '3221225472'},
+
+                                     1711746900: {'cpu_request': '1',
+                                                  'memory_request': '4294967296'},
+                                     1711747800: {'cpu_request': '1',
+                                                  'memory_request': '4294967296'},
+                                     1711748700: {'cpu_request': '1',
+                                                  'memory_request': '4294967296'},
+
+                                     1711765800: {'cpu_request': '1',
+                                                  'memory_request': '4294967296'}},
+                         'namespace': 'naved-test'}}
     """
+    interval = STEP_MIN * 60
     condensed_dict = {}
     for pod, pod_dict in input_metrics_dict.items():
         metrics_dict = pod_dict["metrics"]
@@ -262,26 +291,28 @@ def condense_metrics(input_metrics_dict, metrics_to_check):
 
         start_epoch_time = epoch_times_list[0]
 
-        # calculate the interval if we have more than 1 measurement, otherwise
-        # use the STEP_MIN from the query as best guess
-        if len(epoch_times_list) > 1:
-            interval = epoch_times_list[1] - epoch_times_list[0]
-        else:
-            interval = STEP_MIN * 60
-
         start_metric_dict = metrics_dict[start_epoch_time].copy()
-        for epoch_time in epoch_times_list:
+
+        for i in range(len(epoch_times_list)):
+            epoch_time = epoch_times_list[i]
             same_metrics = True
+            continuous_metrics = True
             for metric in metrics_to_check:
                 if metrics_dict[start_epoch_time].get(metric, 0) != metrics_dict[epoch_time].get(metric, 0):  # fmt: skip
                     same_metrics = False
 
-            if not same_metrics:
-                duration = epoch_time - start_epoch_time
+            if i !=0 and epoch_time - epoch_times_list[i-1]> interval:
+                # i.e. if the difference between 2 consecutive timestamps
+                # is more than the expected frequency then the pod was stopped
+                continuous_metrics = False
+
+            if not same_metrics or not continuous_metrics:
+                duration = epoch_times_list[i-1] - start_epoch_time + interval
                 start_metric_dict["duration"] = duration
                 new_metrics_dict[start_epoch_time] = start_metric_dict
                 start_epoch_time = epoch_time
                 start_metric_dict = metrics_dict[start_epoch_time].copy()
+
         duration = epoch_time - start_epoch_time + interval
         start_metric_dict["duration"] = duration
         new_metrics_dict[start_epoch_time] = start_metric_dict
