@@ -132,7 +132,7 @@ class TestMergeMetrics(TestCase):
             }
         ]
         expected_output_dict = {
-            "pod1": {
+            "namespace1+pod1": {
                 "namespace": "namespace1",
                 "gpu_type": utils.NO_GPU,
                 "metrics": {
@@ -147,7 +147,7 @@ class TestMergeMetrics(TestCase):
                     },
                 }
             },
-            "pod2": {
+            "namespace1+pod2": {
                 "namespace": "namespace1",
                 "gpu_type": utils.NO_GPU,
                 "metrics": {
@@ -193,7 +193,7 @@ class TestMergeMetrics(TestCase):
             }
         ]
         output_dict = {
-            "pod1": {
+            "namespace1+pod1": {
                 "namespace": "namespace1",
                 "gpu_type": utils.NO_GPU,
                 "metrics": {
@@ -208,7 +208,7 @@ class TestMergeMetrics(TestCase):
                     },
                 }
             },
-            "pod2": {
+            "namespace1+pod2": {
                 "namespace": "namespace1",
                 "gpu_type": utils.NO_GPU,
                 "metrics": {
@@ -225,7 +225,7 @@ class TestMergeMetrics(TestCase):
             }
         }
         expected_output_dict = {
-            "pod1": {
+            "namespace1+pod1": {
                 "namespace": "namespace1",
                 "gpu_type": utils.NO_GPU,
                 "metrics": {
@@ -243,7 +243,7 @@ class TestMergeMetrics(TestCase):
                     },
                 }
             },
-            "pod2": {
+            "namespace1+pod2": {
                 "namespace": "namespace1",
                 "gpu_type": utils.NO_GPU,
                 "metrics": {
@@ -295,7 +295,7 @@ class TestMergeMetrics(TestCase):
 
         ]
         expected_output_dict = {
-            "pod1": {
+            "namespace1+pod1": {
                 "namespace": "namespace1",
                 "gpu_type": utils.NO_GPU,
                 "metrics": {
@@ -322,6 +322,70 @@ class TestMergeMetrics(TestCase):
         # trying to merge the same metrics again should not change anything
         utils.merge_metrics('cpu', test_metric_list_2, output_dict)
         self.assertEqual(output_dict, expected_output_dict)
+
+    def test_merge_metrics_same_pod_name(self):
+        test_metric_list = [
+            {
+                "metric": {
+                    "pod": "podA",
+                    "namespace": "namespace1",
+                    "resource": "cpu",
+                },
+                "values": [
+                    [0, 10],
+                    [60, 15],
+                    [120, 20],
+                ]
+            },
+            {
+                "metric": {
+                    "pod": "podA",
+                    "namespace": "namespace2",
+                    "resource": "cpu",
+                },
+                "values": [
+                    [0, 30],
+                    [60, 35],
+                    [120, 40],
+                ]
+            }
+        ]
+        expected_output_dict = {
+            "namespace1+podA": {
+                "namespace": "namespace1",
+                "gpu_type": utils.NO_GPU,
+                "metrics": {
+                    0: {
+                        "cpu": 10
+                    },
+                    60: {
+                        "cpu": 15
+                    },
+                    120: {
+                        "cpu": 20
+                    },
+                }
+            },
+            "namespace2+podA": {
+                "namespace": "namespace2",
+                "gpu_type": utils.NO_GPU,
+                "metrics": {
+                    0: {
+                        "cpu": 30
+                    },
+                    60: {
+                        "cpu": 35
+                    },
+                    120: {
+                        "cpu": 40
+                    },
+                }
+            }
+        }
+        output_dict = {}
+        utils.merge_metrics('cpu', test_metric_list, output_dict)
+        self.assertEqual(output_dict, expected_output_dict)
+
 
 class TestCondenseMetrics(TestCase):
 
