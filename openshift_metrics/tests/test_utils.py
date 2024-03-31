@@ -397,7 +397,7 @@ class TestCondenseMetrics(TestCase):
                         "cpu": 10,
                         "mem": 15,
                     },
-                    60: {
+                    900: {
                         "cpu": 10,
                         "mem": 15,
                     }
@@ -409,7 +409,7 @@ class TestCondenseMetrics(TestCase):
                         "cpu": 2,
                         "mem": 256,
                     },
-                    100: {
+                    900: {
                         "cpu": 2,
                         "mem": 256,
                     }
@@ -422,7 +422,7 @@ class TestCondenseMetrics(TestCase):
                     0: {
                         "cpu": 10,
                         "mem": 15,
-                        "duration": 120
+                        "duration": 1800
                     }
                 }
             },
@@ -431,7 +431,7 @@ class TestCondenseMetrics(TestCase):
                     0: {
                         "cpu": 2,
                         "mem": 256,
-                        "duration": 200
+                        "duration": 1800
                     }
                 }
             },
@@ -473,15 +473,15 @@ class TestCondenseMetrics(TestCase):
                         "cpu": 20,
                         "mem": 25,
                     },
-                    60: {
+                    900: {
                         "cpu": 20,
                         "mem": 25,
                     },
-                    120: {
+                    1800: {
                         "cpu": 25,
                         "mem": 25,
                     },
-                    180: {
+                    2700: {
                         "cpu": 20,
                         "mem": 25,
                     }
@@ -494,17 +494,17 @@ class TestCondenseMetrics(TestCase):
                     0: {
                         "cpu": 20,
                         "mem": 25,
-                        "duration": 120
+                        "duration": 1800
                     },
-                    120: {
+                    1800: {
                         "cpu": 25,
                         "mem": 25,
-                        "duration": 60
+                        "duration": 900
                     },
-                    180: {
+                    2700: {
                         "cpu": 20,
                         "mem": 25,
-                        "duration": 60
+                        "duration": 900
                     }
                 }
             },
@@ -521,7 +521,7 @@ class TestCondenseMetrics(TestCase):
                         "mem": 35,
                         "gpu": 1,
                     },
-                    60: {
+                    900: {
                         "cpu": 30,
                         "mem": 35,
                         "gpu": 2,
@@ -536,13 +536,94 @@ class TestCondenseMetrics(TestCase):
                         "cpu": 30,
                         "mem": 35,
                         "gpu": 1,
-                        "duration": 120
+                        "duration": 1800
                     }
                 }
             },
         }
         condensed_dict = utils.condense_metrics(test_input_dict,['cpu','mem'])
         self.assertEqual(condensed_dict, expected_condensed_dict)
+
+    def test_condense_metrics_with_timeskips(self):
+        test_input_dict = {
+            "pod1": {
+                "metrics": {
+                    0: {
+                        "cpu": 1,
+                        "mem": 4,
+                    },
+                    900: {
+                        "cpu": 1,
+                        "mem": 4,
+                    },
+                    1800: {
+                        "cpu": 1,
+                        "mem": 4,
+                    },
+                    5400: { # time skipped
+                        "cpu": 1,
+                        "mem": 4,
+                    },
+                    6300: {
+                        "cpu": 1,
+                        "mem": 4,
+                    },
+                    8100: { # metric changed and time skipped
+                        "cpu": 2,
+                        "mem": 8,
+                    },
+                    9000: {
+                        "cpu": 2,
+                        "mem": 8,
+                    },
+                }
+            },
+            "pod2": {
+                "metrics": {
+                    0: {
+                        "cpu": 2,
+                        "mem": 16,
+                    },
+                    900: {
+                        "cpu": 2,
+                        "mem": 16,
+                    }
+                }
+            },
+        }
+        expected_condensed_dict = {
+            "pod1": {
+                "metrics": {
+                    0: {
+                        "cpu": 1,
+                        "mem": 4,
+                        "duration": 2700
+                    },
+                    5400: {
+                        "cpu": 1,
+                        "mem": 4,
+                        "duration": 1800
+                    },
+                    8100: {
+                        "cpu": 2,
+                        "mem": 8,
+                        "duration": 1800
+                    },
+                }
+            },
+            "pod2": {
+                "metrics": {
+                    0: {
+                        "cpu": 2,
+                        "mem": 16,
+                        "duration": 1800
+                    }
+                }
+            },
+        }
+        condensed_dict = utils.condense_metrics(test_input_dict,['cpu','mem'])
+        self.assertEqual(condensed_dict, expected_condensed_dict)
+
 
 class TestWriteMetricsByPod(TestCase):
 
