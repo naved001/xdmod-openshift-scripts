@@ -70,7 +70,7 @@ def main():
         report_month += " to " + datetime.strftime(report_end_date, "%Y-%m")
 
     condensed_metrics_dict = utils.condense_metrics(
-        merged_dictionary, ["cpu_request", "memory_request", "gpu_request"]
+        merged_dictionary, ["cpu_request", "memory_request", "gpu_request", "gpu_type"]
     )
     utils.write_metrics_by_namespace(
         condensed_metrics_dict,

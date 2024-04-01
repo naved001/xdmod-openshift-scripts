@@ -134,7 +134,6 @@ class TestMergeMetrics(TestCase):
         expected_output_dict = {
             "namespace1+pod1": {
                 "namespace": "namespace1",
-                "gpu_type": utils.NO_GPU,
                 "metrics": {
                     0: {
                         "cpu": 10
@@ -149,7 +148,6 @@ class TestMergeMetrics(TestCase):
             },
             "namespace1+pod2": {
                 "namespace": "namespace1",
-                "gpu_type": utils.NO_GPU,
                 "metrics": {
                     0: {
                         "cpu": 30
@@ -195,7 +193,6 @@ class TestMergeMetrics(TestCase):
         output_dict = {
             "namespace1+pod1": {
                 "namespace": "namespace1",
-                "gpu_type": utils.NO_GPU,
                 "metrics": {
                     0: {
                         "cpu": 10
@@ -210,7 +207,6 @@ class TestMergeMetrics(TestCase):
             },
             "namespace1+pod2": {
                 "namespace": "namespace1",
-                "gpu_type": utils.NO_GPU,
                 "metrics": {
                     0: {
                         "cpu": 30
@@ -227,7 +223,6 @@ class TestMergeMetrics(TestCase):
         expected_output_dict = {
             "namespace1+pod1": {
                 "namespace": "namespace1",
-                "gpu_type": utils.NO_GPU,
                 "metrics": {
                     0: {
                         "cpu": 10,
@@ -245,7 +240,6 @@ class TestMergeMetrics(TestCase):
             },
             "namespace1+pod2": {
                 "namespace": "namespace1",
-                "gpu_type": utils.NO_GPU,
                 "metrics": {
                     0: {
                         "cpu": 30
@@ -297,7 +291,6 @@ class TestMergeMetrics(TestCase):
         expected_output_dict = {
             "namespace1+pod1": {
                 "namespace": "namespace1",
-                "gpu_type": utils.NO_GPU,
                 "metrics": {
                     0: {
                         "cpu": 10
@@ -353,7 +346,6 @@ class TestMergeMetrics(TestCase):
         expected_output_dict = {
             "namespace1+podA": {
                 "namespace": "namespace1",
-                "gpu_type": utils.NO_GPU,
                 "metrics": {
                     0: {
                         "cpu": 10
@@ -368,7 +360,6 @@ class TestMergeMetrics(TestCase):
             },
             "namespace2+podA": {
                 "namespace": "namespace2",
-                "gpu_type": utils.NO_GPU,
                 "metrics": {
                     0: {
                         "cpu": 30
@@ -384,6 +375,63 @@ class TestMergeMetrics(TestCase):
         }
         output_dict = {}
         utils.merge_metrics('cpu', test_metric_list, output_dict)
+        self.assertEqual(output_dict, expected_output_dict)
+
+    def test_merge_metrics_not_empty_with_gpu(self):
+        test_metric_list = [
+            {
+                "metric": {
+                    "pod": "pod1",
+                    "namespace": "namespace1",
+                    "resource": "nvidia.com/gpu",
+                    "label_nvidia_com_gpu_product": "Tesla-V100-PCIE-32GB"
+                },
+                "values": [
+                    [0, 1],
+                    [60, 1],
+                    [120, 2],
+                ]
+            },
+        ]
+        output_dict = {
+            "namespace1+pod1": {
+                "namespace": "namespace1",
+                "metrics": {
+                    0: {
+                        "cpu": 10
+                    },
+                    60: {
+                        "cpu": 15
+                    },
+                    120: {
+                        "cpu": 20
+                    },
+                }
+            },
+        }
+        expected_output_dict = {
+            "namespace1+pod1": {
+                "namespace": "namespace1",
+                "metrics": {
+                    0: {
+                        "cpu": 10,
+                        "gpu_request": 1,
+                        "gpu_type": "Tesla-V100-PCIE-32GB"
+                    },
+                    60: {
+                        "cpu": 15,
+                        "gpu_request": 1,
+                        "gpu_type": "Tesla-V100-PCIE-32GB"
+                    },
+                    120: {
+                        "cpu": 20,
+                        "gpu_request": 2,
+                        "gpu_type": "Tesla-V100-PCIE-32GB"
+                    },
+                }
+            },
+        }
+        utils.merge_metrics('gpu_request', test_metric_list, output_dict)
         self.assertEqual(output_dict, expected_output_dict)
 
 
@@ -624,6 +672,107 @@ class TestCondenseMetrics(TestCase):
         condensed_dict = utils.condense_metrics(test_input_dict,['cpu','mem'])
         self.assertEqual(condensed_dict, expected_condensed_dict)
 
+    def test_condense_metrics_with_changing_gpu(self):
+        test_input_dict = {
+            "pod1": {
+                "metrics": {
+                    0: {
+                        "cpu": 1,
+                        "mem": 4,
+                    },
+                    900: {
+                        "cpu": 1,
+                        "mem": 4,
+                    },
+                    1800: { # pod acquires a GPU
+                        "cpu": 1,
+                        "mem": 4,
+                        "gpu_request": 1,
+                        "gpu_type": utils.GPU_V100,
+                    },
+                    2700: {
+                        "cpu": 1,
+                        "mem": 4,
+                        "gpu_request": 1,
+                        "gpu_type": utils.GPU_V100,
+                    },
+                    3600: { # type of GPU is changed
+                        "cpu": 1,
+                        "mem": 4,
+                        "gpu_request": 1,
+                        "gpu_type": utils.GPU_A100_SXM4,
+                    },
+                    4500: {
+                        "cpu": 1,
+                        "mem": 4,
+                        "gpu_request": 1,
+                        "gpu_type": utils.GPU_A100_SXM4,
+                    },
+                    5400: {
+                        "cpu": 1,
+                        "mem": 4,
+                        "gpu_request": 1,
+                        "gpu_type": utils.GPU_A100_SXM4,
+                    },
+                    6300: { # count of GPU is changed
+                        "cpu": 1,
+                        "mem": 4,
+                        "gpu_request": 3,
+                        "gpu_type": utils.GPU_A100_SXM4,
+                    },
+                    7200: {
+                        "cpu": 1,
+                        "mem": 4,
+                        "gpu_request": 3,
+                        "gpu_type": utils.GPU_A100_SXM4,
+                    },
+                    8100: { # no longer using GPUs
+                        "cpu": 1,
+                        "mem": 4,
+                    },
+                }
+            },
+        }
+        expected_condensed_dict = {
+            "pod1": {
+                "metrics": {
+                    0: {
+                        "cpu": 1,
+                        "mem": 4,
+                        "duration": 1800
+                    },
+                    1800: {
+                        "cpu": 1,
+                        "mem": 4,
+                        "duration": 1800,
+                        "gpu_request": 1,
+                        "gpu_type": utils.GPU_V100,
+                    },
+                    3600: {
+                        "cpu": 1,
+                        "mem": 4,
+                        "duration": 2700,
+                        "gpu_request": 1,
+                        "gpu_type": utils.GPU_A100_SXM4,
+                    },
+                    6300: {
+                        "cpu": 1,
+                        "mem": 4,
+                        "duration": 1800,
+                        "gpu_request": 3,
+                        "gpu_type": utils.GPU_A100_SXM4,
+                    },
+                    8100: {
+                        "cpu": 1,
+                        "mem": 4,
+                        "duration": 900,
+                    },
+                }
+            },
+        }
+        condensed_dict = utils.condense_metrics(test_input_dict,['cpu','mem', 'gpu_request', 'gpu_type'])
+        self.assertEqual(condensed_dict, expected_condensed_dict)
+
 
 class TestWriteMetricsByPod(TestCase):
 
@@ -733,7 +882,6 @@ class TestWriteMetricsByNamespace(TestCase):
         test_metrics_dict = {
             "pod1": {
                 "namespace": "namespace1",
-                "gpu_type": utils.NO_GPU,
                 "metrics": {
                     0: {
                         "cpu_request": 2,
@@ -749,7 +897,6 @@ class TestWriteMetricsByNamespace(TestCase):
             },
             "pod2": {
                 "namespace": "namespace1",
-                "gpu_type": utils.NO_GPU,
                 "metrics": {
                     0: {
                         "cpu_request": 4,
@@ -765,7 +912,6 @@ class TestWriteMetricsByNamespace(TestCase):
             },
             "pod3": {
                 "namespace": "namespace2",
-                "gpu_type": utils.NO_GPU,
                 "metrics": {
                     0: {
                         "cpu_request": 1,
@@ -776,12 +922,12 @@ class TestWriteMetricsByNamespace(TestCase):
             },
             "pod4": {
                 "namespace": "namespace2",
-                "gpu_type": utils.GPU_A100,
                 "metrics": {
                     0: {
                         "cpu_request": 1,
                         "memory_request": 8 * 2**30,
                         "gpu_request": 1,
+                        "gpu_type": utils.GPU_A100,
                         "duration": 172700 # little under 48 hours, expect to be rounded up in the output
                     },
                 }
@@ -794,6 +940,7 @@ class TestWriteMetricsByNamespace(TestCase):
                         "cpu_request": 24,
                         "memory_request": 8 * 2**30,
                         "gpu_request": 1,
+                        "gpu_type": utils.GPU_A100_SXM4,
                         "duration": 172800
                     },
                 }

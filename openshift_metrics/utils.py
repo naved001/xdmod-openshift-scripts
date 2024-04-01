@@ -236,16 +236,19 @@ def merge_metrics(metric_name, metric_list, output_dict):
 
         resource = metric["metric"].get("resource")
 
-        if resource not in ["cpu", "memory"]:
-            output_dict[unique_name]["gpu_type"] = metric["metric"].get("label_nvidia_com_gpu_product", GPU_GENERIC)
+        if metric_name == "gpu_request":
+            gpu_type = metric["metric"].get("label_nvidia_com_gpu_product", resource)
         else:
-            output_dict[unique_name]["gpu_type"] = NO_GPU
+            gpu_type = None
 
         for value in metric["values"]:
             epoch_time = value[0]
             if epoch_time not in output_dict[unique_name]["metrics"]:
                 output_dict[unique_name]["metrics"][epoch_time] = {}
             output_dict[unique_name]["metrics"][epoch_time][metric_name] = value[1]
+            if gpu_type:
+                output_dict[unique_name]["metrics"][epoch_time]['gpu_type'] = gpu_type
+
     return output_dict
 
 
@@ -382,8 +385,6 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month):
         cf_pi = namespace_annotation_dict.get("cf_pi")
         cf_institution_code = namespace_annotation_dict.get("institution_code")
 
-        gpu_type = pod_dict["gpu_type"]
-
         if namespace not in metrics_by_namespace:
             metrics_by_namespace[namespace] = {
                 "pi": cf_pi,
@@ -402,6 +403,7 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month):
             duration_in_hours = float(pod_metric_dict["duration"]) / 3600
             cpu_request = float(pod_metric_dict.get("cpu_request", 0))
             gpu_request = float(pod_metric_dict.get("gpu_request", 0))
+            gpu_type = pod_metric_dict.get("gpu_type", NO_GPU)
             memory_request = float(pod_metric_dict.get("memory_request", 0)) / 2**30
 
             _, su_count, _ = get_service_unit(cpu_request, memory_request, gpu_request, gpu_type)
@@ -475,7 +477,6 @@ def write_metrics_by_pod(metrics_dict, file_name):
     for pod, pod_dict in metrics_dict.items():
         namespace = pod_dict["namespace"]
         pod_metrics_dict = pod_dict["metrics"]
-        gpu_type = pod_dict["gpu_type"]
         namespace_annotation_dict = namespace_annotations.get(namespace, {})
         cf_pi = namespace_annotation_dict.get("cf_pi")
         cf_project_id = namespace_annotation_dict.get("cf_project_id")
@@ -490,6 +491,7 @@ def write_metrics_by_pod(metrics_dict, file_name):
             duration = round(float(pod_metric_dict["duration"]) / 3600, 4)
             cpu_request = pod_metric_dict.get("cpu_request", 0)
             gpu_request = pod_metric_dict.get("gpu_request", 0)
+            gpu_type = pod_metric_dict.get("gpu_type", NO_GPU)
             memory_request = round(float(pod_metric_dict.get("memory_request", 0)) / 2**30, 4)
             su_type, su_count, determining_resource = get_service_unit(
                 float(cpu_request), memory_request, float(gpu_request), gpu_type
