@@ -28,7 +28,7 @@ from requests.adapters import HTTPAdapter
 GPU_A100 = "NVIDIA-A100-40GB"
 GPU_A100_SXM4 = "NVIDIA-A100-SXM4-40GB"
 GPU_V100 = "Tesla-V100-PCIE-32GB"
-GPU_GENERIC = "nvidia.com/gpu"
+GPU_UNKNOWN_TYPE = "GPU_UNKNOWN_TYPE"
 NO_GPU = "No GPU"
 
 # SU Types
@@ -182,7 +182,7 @@ def get_service_unit(cpu_count, memory_count, gpu_count, gpu_type):
         GPU_A100: SU_A100_GPU,
         GPU_A100_SXM4: SU_A100_SXM4_GPU,
         GPU_V100: SU_V100_GPU,
-        GPU_GENERIC: SU_UNKNOWN_GPU,
+        GPU_UNKNOWN_TYPE: SU_UNKNOWN_GPU,
     }
 
     # GPU count for some configs is -1 for math reasons, in reality it is 0
@@ -234,10 +234,8 @@ def merge_metrics(metric_name, metric_list, output_dict):
         if unique_name not in output_dict:
             output_dict[unique_name] = {"namespace": metric["metric"]["namespace"], "metrics": {}}
 
-        resource = metric["metric"].get("resource")
-
         if metric_name == "gpu_request":
-            gpu_type = metric["metric"].get("label_nvidia_com_gpu_product", resource)
+            gpu_type = metric["metric"].get("label_nvidia_com_gpu_product", GPU_UNKNOWN_TYPE)
         else:
             gpu_type = None
 
@@ -403,7 +401,7 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month):
             duration_in_hours = float(pod_metric_dict["duration"]) / 3600
             cpu_request = float(pod_metric_dict.get("cpu_request", 0))
             gpu_request = float(pod_metric_dict.get("gpu_request", 0))
-            gpu_type = pod_metric_dict.get("gpu_type", NO_GPU)
+            gpu_type = pod_metric_dict.get("gpu_type")
             memory_request = float(pod_metric_dict.get("memory_request", 0)) / 2**30
 
             _, su_count, _ = get_service_unit(cpu_request, memory_request, gpu_request, gpu_type)
@@ -414,7 +412,7 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month):
                 metrics_by_namespace[namespace]["SU_A100_SXM4_GPU_HOURS"] += su_count * duration_in_hours
             elif gpu_type == GPU_V100:
                 metrics_by_namespace[namespace]["SU_V100_GPU_HOURS"] += su_count * duration_in_hours
-            elif gpu_type == GPU_GENERIC:
+            elif gpu_type == GPU_UNKNOWN_TYPE:
                 metrics_by_namespace[namespace]["SU_UNKNOWN_GPU_HOURS"] += su_count * duration_in_hours
             else:
                 metrics_by_namespace[namespace]["SU_CPU_HOURS"] += su_count * duration_in_hours
