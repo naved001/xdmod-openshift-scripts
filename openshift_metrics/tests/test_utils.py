@@ -416,17 +416,20 @@ class TestMergeMetrics(TestCase):
                     0: {
                         "cpu": 10,
                         "gpu_request": 1,
-                        "gpu_type": "Tesla-V100-PCIE-32GB"
+                        "gpu_type": "Tesla-V100-PCIE-32GB",
+                        "gpu_resource": "nvidia.com/gpu",
                     },
                     60: {
                         "cpu": 15,
                         "gpu_request": 1,
-                        "gpu_type": "Tesla-V100-PCIE-32GB"
+                        "gpu_type": "Tesla-V100-PCIE-32GB",
+                        "gpu_resource": "nvidia.com/gpu",
                     },
                     120: {
                         "cpu": 20,
                         "gpu_request": 2,
-                        "gpu_type": "Tesla-V100-PCIE-32GB"
+                        "gpu_type": "Tesla-V100-PCIE-32GB",
+                        "gpu_resource": "nvidia.com/gpu",
                     },
                 }
             },
@@ -791,23 +794,25 @@ class TestWriteMetricsByPod(TestCase):
         test_metrics_dict = {
             "pod1": {
                 "namespace": "namespace1",
-                "gpu_type": utils.NO_GPU,
                 "metrics": {
                     0: {
                         "cpu_request": 10,
                         "memory_request": 1048576,
-                        "duration": 120
+                        "duration": 120,
+                        "node": "wrk-1",
+                        "node_model": "Dell",
                     },
                     120: {
                         "cpu_request": 20,
                         "memory_request": 1048576,
-                        "duration": 60
+                        "duration": 60,
+                        "node": "wrk-2",
+                        "node_model": "Lenovo"
                     }
                 }
             },
             "pod2": {
                 "namespace": "namespace1",
-                "gpu_type": utils.NO_GPU,
                 "metrics": {
                     0: {
                         "cpu_request": 20,
@@ -828,7 +833,6 @@ class TestWriteMetricsByPod(TestCase):
             },
             "pod3": {
                 "namespace": "namespace2",
-                "gpu_type": utils.NO_GPU,
                 "metrics": {
                     0: {
                         "cpu_request": 45,
@@ -839,7 +843,6 @@ class TestWriteMetricsByPod(TestCase):
             },
             "pod4": { # this results in 0.5 SU
                 "namespace": "namespace2",
-                "gpu_type": utils.NO_GPU,
                 "metrics": {
                     0: {
                         "cpu_request": 0.5,
@@ -850,14 +853,14 @@ class TestWriteMetricsByPod(TestCase):
             },
         }
 
-        expected_output = ("Namespace,Coldfront_PI Name,Coldfront Project ID ,Pod Start Time,Pod End Time,Duration (Hours),Pod Name,CPU Request,GPU Request,GPU Type,Memory Request (GiB),Determining Resource,SU Type,SU Count\n"
-                           "namespace1,PI1,123,1970-01-01T00:00:00,1970-01-01T00:02:00,0.0333,pod1,10,0,No GPU,0.001,CPU,OpenShift CPU,10.0\n"
-                           "namespace1,PI1,123,1970-01-01T00:02:00,1970-01-01T00:03:00,0.0167,pod1,20,0,No GPU,0.001,CPU,OpenShift CPU,20.0\n"
-                           "namespace1,PI1,123,1970-01-01T00:00:00,1970-01-01T00:01:00,0.0167,pod2,20,0,No GPU,0.0098,CPU,OpenShift CPU,20.0\n"
-                           "namespace1,PI1,123,1970-01-01T00:01:00,1970-01-01T00:02:00,0.0167,pod2,25,0,No GPU,0.0098,CPU,OpenShift CPU,25.0\n"
-                           "namespace1,PI1,123,1970-01-01T00:02:00,1970-01-01T00:03:00,0.0167,pod2,20,0,No GPU,0.0098,CPU,OpenShift CPU,20.0\n"
-                           "namespace2,PI2,456,1970-01-01T00:00:00,1970-01-01T00:03:00,0.05,pod3,45,0,No GPU,0.0977,CPU,OpenShift CPU,45.0\n"
-                           "namespace2,PI2,456,1970-01-01T00:00:00,1970-01-01T01:00:00,1.0,pod4,0.5,0,No GPU,2.0,CPU,OpenShift CPU,0.5\n")
+        expected_output = ("Namespace,Coldfront_PI Name,Coldfront Project ID ,Pod Start Time,Pod End Time,Duration (Hours),Pod Name,CPU Request,GPU Request,GPU Type,GPU Resource,Node,Node Model,Memory Request (GiB),Determining Resource,SU Type,SU Count\n"
+                           "namespace1,PI1,123,1970-01-01T00:00:00,1970-01-01T00:02:00,0.0333,pod1,10,0,,,wrk-1,Dell,0.001,CPU,OpenShift CPU,10.0\n"
+                           "namespace1,PI1,123,1970-01-01T00:02:00,1970-01-01T00:03:00,0.0167,pod1,20,0,,,wrk-2,Lenovo,0.001,CPU,OpenShift CPU,20.0\n"
+                           "namespace1,PI1,123,1970-01-01T00:00:00,1970-01-01T00:01:00,0.0167,pod2,20,0,,,Unknown Node,Unknown Model,0.0098,CPU,OpenShift CPU,20.0\n"
+                           "namespace1,PI1,123,1970-01-01T00:01:00,1970-01-01T00:02:00,0.0167,pod2,25,0,,,Unknown Node,Unknown Model,0.0098,CPU,OpenShift CPU,25.0\n"
+                           "namespace1,PI1,123,1970-01-01T00:02:00,1970-01-01T00:03:00,0.0167,pod2,20,0,,,Unknown Node,Unknown Model,0.0098,CPU,OpenShift CPU,20.0\n"
+                           "namespace2,PI2,456,1970-01-01T00:00:00,1970-01-01T00:03:00,0.05,pod3,45,0,,,Unknown Node,Unknown Model,0.0977,CPU,OpenShift CPU,45.0\n"
+                           "namespace2,PI2,456,1970-01-01T00:00:00,1970-01-01T01:00:00,1.0,pod4,0.5,0,,,Unknown Node,Unknown Model,2.0,CPU,OpenShift CPU,0.5\n")
 
         with tempfile.NamedTemporaryFile(mode="w+") as tmp:
             utils.write_metrics_by_pod(test_metrics_dict, tmp.name)

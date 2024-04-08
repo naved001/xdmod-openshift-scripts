@@ -230,14 +230,20 @@ def merge_metrics(metric_name, metric_list, output_dict):
     for metric in metric_list:
         pod = metric["metric"]["pod"]
         namespace = metric["metric"]["namespace"]
+        node = metric["metric"].get("node")
+
+        gpu_type = None
+        gpu_resource = None
+        node_model = None
+
         unique_name = namespace + "+" + pod
         if unique_name not in output_dict:
-            output_dict[unique_name] = {"namespace": metric["metric"]["namespace"], "metrics": {}}
+            output_dict[unique_name] = {"namespace": namespace, "metrics": {}}
 
         if metric_name == "gpu_request":
             gpu_type = metric["metric"].get("label_nvidia_com_gpu_product", GPU_UNKNOWN_TYPE)
-        else:
-            gpu_type = None
+            gpu_resource = metric["metric"].get("resource")
+            node_model = metric["metric"].get("label_nvidia_com_gpu_machine")
 
         for value in metric["values"]:
             epoch_time = value[0]
@@ -246,6 +252,12 @@ def merge_metrics(metric_name, metric_list, output_dict):
             output_dict[unique_name]["metrics"][epoch_time][metric_name] = value[1]
             if gpu_type:
                 output_dict[unique_name]["metrics"][epoch_time]['gpu_type'] = gpu_type
+            if gpu_resource:
+                output_dict[unique_name]["metrics"][epoch_time]['gpu_resource'] = gpu_resource
+            if node_model:
+                output_dict[unique_name]["metrics"][epoch_time]['node_model'] = node_model
+            if node:
+                output_dict[unique_name]["metrics"][epoch_time]['node'] = node
 
     return output_dict
 
@@ -465,6 +477,9 @@ def write_metrics_by_pod(metrics_dict, file_name):
         "CPU Request",
         "GPU Request",
         "GPU Type",
+        "GPU Resource",
+        "Node",
+        "Node Model",
         "Memory Request (GiB)",
         "Determining Resource",
         "SU Type",
@@ -489,7 +504,10 @@ def write_metrics_by_pod(metrics_dict, file_name):
             duration = round(float(pod_metric_dict["duration"]) / 3600, 4)
             cpu_request = pod_metric_dict.get("cpu_request", 0)
             gpu_request = pod_metric_dict.get("gpu_request", 0)
-            gpu_type = pod_metric_dict.get("gpu_type", NO_GPU)
+            gpu_type = pod_metric_dict.get("gpu_type")
+            gpu_resource = pod_metric_dict.get("gpu_resource")
+            node = pod_metric_dict.get("node", "Unknown Node")
+            node_model = pod_metric_dict.get("node_model", "Unknown Model")
             memory_request = round(float(pod_metric_dict.get("memory_request", 0)) / 2**30, 4)
             su_type, su_count, determining_resource = get_service_unit(
                 float(cpu_request), memory_request, float(gpu_request), gpu_type
@@ -506,6 +524,9 @@ def write_metrics_by_pod(metrics_dict, file_name):
                 cpu_request,
                 gpu_request,
                 gpu_type,
+                gpu_resource,
+                node,
+                node_model,
                 memory_request,
                 determining_resource,
                 su_type,
