@@ -29,7 +29,14 @@ GPU_A100 = "NVIDIA-A100-40GB"
 GPU_A100_SXM4 = "NVIDIA-A100-SXM4-40GB"
 GPU_V100 = "Tesla-V100-PCIE-32GB"
 GPU_UNKNOWN_TYPE = "GPU_UNKNOWN_TYPE"
-NO_GPU = "No GPU"
+
+# GPU Resource - MIG Geometries
+# A100 Strategies
+MIG_1G_5GB = "nvidia.com/mig-1g.5gb"
+MIG_2G_10GB = "nvidia.com/mig-2g.10gb"
+MIG_3G_20GB = "nvidia.com/mig-3g.20gb"
+WHOLE_GPU = "nvidia.com/gpu"
+
 
 # SU Types
 SU_CPU = "OpenShift CPU"
@@ -37,6 +44,7 @@ SU_A100_GPU = "OpenShift GPUA100"
 SU_A100_SXM4_GPU = "OpenShift GPUA100SXM4"
 SU_V100_GPU = "OpenShift GPUV100"
 SU_UNKNOWN_GPU = "OpenShift Unknown GPU"
+SU_UNKNOWN_MIG_GPU = "OpenShift Unknown MIG GPU"
 SU_UNKNOWN = "Openshift Unknown"
 
 RATE = {
@@ -160,18 +168,15 @@ def get_namespace_attributes():
     return namespaces_dict
 
 
-def get_service_unit(cpu_count, memory_count, gpu_count, gpu_type):
+def get_service_unit(cpu_count, memory_count, gpu_count, gpu_type, gpu_resource):
     """
     Returns the type of service unit, the count, and the determining resource
     """
     su_type = SU_UNKNOWN
     su_count = 0
 
-    if gpu_type == NO_GPU:
-        gpu_type = None
-
     # pods that requested a specific GPU but weren't scheduled may report 0 GPU
-    if gpu_type is not None and gpu_count == 0:
+    if gpu_resource is not None and gpu_count == 0:
         return SU_UNKNOWN_GPU, 0, "GPU"
 
     # pods in weird states
@@ -182,7 +187,12 @@ def get_service_unit(cpu_count, memory_count, gpu_count, gpu_type):
         GPU_A100: SU_A100_GPU,
         GPU_A100_SXM4: SU_A100_SXM4_GPU,
         GPU_V100: SU_V100_GPU,
-        GPU_UNKNOWN_TYPE: SU_UNKNOWN_GPU,
+    }
+
+    A100_SXM4_MIG = {
+        MIG_1G_5GB: SU_UNKNOWN_MIG_GPU,
+        MIG_2G_10GB: SU_UNKNOWN_MIG_GPU,
+        MIG_3G_20GB: SU_UNKNOWN_MIG_GPU,
     }
 
     # GPU count for some configs is -1 for math reasons, in reality it is 0
@@ -192,13 +202,18 @@ def get_service_unit(cpu_count, memory_count, gpu_count, gpu_type):
         SU_A100_SXM4_GPU: {"gpu": 1, "cpu": 32, "ram": 245},
         SU_V100_GPU: {"gpu": 1, "cpu": 24, "ram": 192},
         SU_UNKNOWN_GPU: {"gpu": 1, "cpu": 8, "ram": 64},
+        SU_UNKNOWN_MIG_GPU: {"gpu": 1, "cpu": 8, "ram": 64},
         SU_UNKNOWN: {"gpu": -1, "cpu": 1, "ram": 1},
     }
 
-    if gpu_type is None and gpu_count == 0:
+    if gpu_resource is None and gpu_count == 0:
         su_type = SU_CPU
-    else:
+    elif gpu_type is not None and gpu_resource == WHOLE_GPU:
         su_type = known_gpu_su.get(gpu_type, SU_UNKNOWN_GPU)
+    elif gpu_type == GPU_A100_SXM4: # for MIG GPU of type A100_SXM4
+        su_type = A100_SXM4_MIG.get(gpu_resource, SU_UNKNOWN_MIG_GPU)
+    else:
+        return SU_UNKNOWN_GPU, 0, "GPU"
 
     cpu_multiplier = cpu_count / su_config[su_type]["cpu"]
     gpu_multiplier = gpu_count / su_config[su_type]["gpu"]
@@ -230,14 +245,20 @@ def merge_metrics(metric_name, metric_list, output_dict):
     for metric in metric_list:
         pod = metric["metric"]["pod"]
         namespace = metric["metric"]["namespace"]
+        node = metric["metric"].get("node")
+
+        gpu_type = None
+        gpu_resource = None
+        node_model = None
+
         unique_name = namespace + "+" + pod
         if unique_name not in output_dict:
-            output_dict[unique_name] = {"namespace": metric["metric"]["namespace"], "metrics": {}}
+            output_dict[unique_name] = {"namespace": namespace, "metrics": {}}
 
         if metric_name == "gpu_request":
             gpu_type = metric["metric"].get("label_nvidia_com_gpu_product", GPU_UNKNOWN_TYPE)
-        else:
-            gpu_type = None
+            gpu_resource = metric["metric"].get("resource")
+            node_model = metric["metric"].get("label_nvidia_com_gpu_machine")
 
         for value in metric["values"]:
             epoch_time = value[0]
@@ -246,6 +267,12 @@ def merge_metrics(metric_name, metric_list, output_dict):
             output_dict[unique_name]["metrics"][epoch_time][metric_name] = value[1]
             if gpu_type:
                 output_dict[unique_name]["metrics"][epoch_time]['gpu_type'] = gpu_type
+            if gpu_resource:
+                output_dict[unique_name]["metrics"][epoch_time]['gpu_resource'] = gpu_resource
+            if node_model:
+                output_dict[unique_name]["metrics"][epoch_time]['node_model'] = node_model
+            if node:
+                output_dict[unique_name]["metrics"][epoch_time]['node'] = node
 
     return output_dict
 
@@ -402,9 +429,10 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month):
             cpu_request = float(pod_metric_dict.get("cpu_request", 0))
             gpu_request = float(pod_metric_dict.get("gpu_request", 0))
             gpu_type = pod_metric_dict.get("gpu_type")
+            gpu_resource = pod_metric_dict.get("gpu_resource")
             memory_request = float(pod_metric_dict.get("memory_request", 0)) / 2**30
 
-            _, su_count, _ = get_service_unit(cpu_request, memory_request, gpu_request, gpu_type)
+            _, su_count, _ = get_service_unit(cpu_request, memory_request, gpu_request, gpu_type, gpu_resource)
 
             if gpu_type == GPU_A100:
                 metrics_by_namespace[namespace]["SU_A100_GPU_HOURS"] += su_count * duration_in_hours
@@ -465,6 +493,9 @@ def write_metrics_by_pod(metrics_dict, file_name):
         "CPU Request",
         "GPU Request",
         "GPU Type",
+        "GPU Resource",
+        "Node",
+        "Node Model",
         "Memory Request (GiB)",
         "Determining Resource",
         "SU Type",
@@ -489,10 +520,13 @@ def write_metrics_by_pod(metrics_dict, file_name):
             duration = round(float(pod_metric_dict["duration"]) / 3600, 4)
             cpu_request = pod_metric_dict.get("cpu_request", 0)
             gpu_request = pod_metric_dict.get("gpu_request", 0)
-            gpu_type = pod_metric_dict.get("gpu_type", NO_GPU)
+            gpu_type = pod_metric_dict.get("gpu_type")
+            gpu_resource = pod_metric_dict.get("gpu_resource")
+            node = pod_metric_dict.get("node", "Unknown Node")
+            node_model = pod_metric_dict.get("node_model", "Unknown Model")
             memory_request = round(float(pod_metric_dict.get("memory_request", 0)) / 2**30, 4)
             su_type, su_count, determining_resource = get_service_unit(
-                float(cpu_request), memory_request, float(gpu_request), gpu_type
+                float(cpu_request), memory_request, float(gpu_request), gpu_type, gpu_resource
             )
 
             info_list = [
@@ -506,6 +540,9 @@ def write_metrics_by_pod(metrics_dict, file_name):
                 cpu_request,
                 gpu_request,
                 gpu_type,
+                gpu_resource,
+                node,
+                node_model,
                 memory_request,
                 determining_resource,
                 su_type,
