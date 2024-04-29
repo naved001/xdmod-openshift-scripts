@@ -21,6 +21,8 @@ import csv
 import requests
 import boto3
 
+from decimal import Decimal
+import decimal
 from urllib3.util.retry import Retry
 from requests.adapters import HTTPAdapter
 
@@ -48,11 +50,11 @@ SU_UNKNOWN_MIG_GPU = "OpenShift Unknown MIG GPU"
 SU_UNKNOWN = "Openshift Unknown"
 
 RATE = {
-    SU_CPU: 0.013,
-    SU_A100_GPU: 1.803,
-    SU_A100_SXM4_GPU: 2.078,
-    SU_V100_GPU: 1.214,
-    SU_UNKNOWN_GPU: 0,
+    SU_CPU: Decimal("0.013"),
+    SU_A100_GPU: Decimal("1.803"),
+    SU_A100_SXM4_GPU: Decimal("2.078"),
+    SU_V100_GPU: Decimal("1.214"),
+    SU_UNKNOWN_GPU: Decimal("0"),
 }
 
 STEP_MIN = 15
@@ -362,6 +364,8 @@ def csv_writer(rows, file_name):
 
 def add_row(rows, report_month, namespace, pi, institution_code, hours, su_type):
 
+    hours = math.ceil(hours)
+    cost = (RATE.get(su_type) * hours).quantize(Decimal('.01'), rounding=decimal.ROUND_HALF_UP)
     row = [
         report_month,
         namespace,
@@ -371,10 +375,10 @@ def add_row(rows, report_month, namespace, pi, institution_code, hours, su_type)
         "", #Invoice Address
         "", #Institution
         institution_code,
-        str(math.ceil(hours)),
+        hours,
         su_type,
         RATE.get(su_type),
-        str(round(RATE.get(su_type) * math.ceil(hours), 2))
+        cost,
     ]
     rows.append(row)
 
@@ -425,12 +429,12 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month):
             }
 
         for epoch_time, pod_metric_dict in pod_metrics_dict.items():
-            duration_in_hours = float(pod_metric_dict["duration"]) / 3600
-            cpu_request = float(pod_metric_dict.get("cpu_request", 0))
-            gpu_request = float(pod_metric_dict.get("gpu_request", 0))
+            duration_in_hours = Decimal(pod_metric_dict["duration"]) / 3600
+            cpu_request = Decimal(pod_metric_dict.get("cpu_request", 0))
+            gpu_request = Decimal(pod_metric_dict.get("gpu_request", 0))
             gpu_type = pod_metric_dict.get("gpu_type")
             gpu_resource = pod_metric_dict.get("gpu_resource")
-            memory_request = float(pod_metric_dict.get("memory_request", 0)) / 2**30
+            memory_request = Decimal(pod_metric_dict.get("memory_request", 0)) / 2**30
 
             _, su_count, _ = get_service_unit(cpu_request, memory_request, gpu_request, gpu_type, gpu_resource)
 
@@ -517,16 +521,16 @@ def write_metrics_by_pod(metrics_dict, file_name):
             end_time = datetime.datetime.utcfromtimestamp(
                 float(epoch_time + pod_metric_dict["duration"])
             ).strftime("%Y-%m-%dT%H:%M:%S")
-            duration = round(float(pod_metric_dict["duration"]) / 3600, 4)
-            cpu_request = pod_metric_dict.get("cpu_request", 0)
-            gpu_request = pod_metric_dict.get("gpu_request", 0)
+            duration = (Decimal(pod_metric_dict["duration"]) / 3600).quantize(Decimal(".0001"), rounding=decimal.ROUND_HALF_UP)
+            cpu_request = Decimal(pod_metric_dict.get("cpu_request", 0))
+            gpu_request = Decimal(pod_metric_dict.get("gpu_request", 0))
             gpu_type = pod_metric_dict.get("gpu_type")
             gpu_resource = pod_metric_dict.get("gpu_resource")
             node = pod_metric_dict.get("node", "Unknown Node")
             node_model = pod_metric_dict.get("node_model", "Unknown Model")
-            memory_request = round(float(pod_metric_dict.get("memory_request", 0)) / 2**30, 4)
+            memory_request = (Decimal(pod_metric_dict.get("memory_request", 0)) / 2**30).quantize(Decimal(".0001"), rounding=decimal.ROUND_HALF_UP)
             su_type, su_count, determining_resource = get_service_unit(
-                float(cpu_request), memory_request, float(gpu_request), gpu_type, gpu_resource
+                cpu_request, memory_request, gpu_request, gpu_type, gpu_resource
             )
 
             info_list = [
