@@ -963,6 +963,48 @@ class TestWriteMetricsByNamespace(TestCase):
             self.assertEqual(tmp.read(), expected_output)
 
 
+    @mock.patch('openshift_metrics.utils.get_namespace_attributes')
+    def test_write_metrics_by_namespace_decimal(self, mock_gna):
+        """This tests the inaccurate result we get when using floating
+        point instead of decimals.
+
+        If floating points are used then the cost is 0.45499999999999996
+        which is then rounded down to 0.45.
+        """
+        mock_gna.return_value = {
+            'namespace1': {
+                'cf_pi': 'PI1',
+                'cf_project_id': '123',
+                'institution_code': '76'
+            },
+        }
+
+        duration = 35 #hours
+        rate = 0.013
+
+        test_metrics_dict = {
+            "pod1": {
+                "namespace": "namespace1",
+                "metrics": {
+                    0: {
+                        "cpu_request": 1,
+                        "memory_request": 4 * 2**30,
+                        "duration": 35*3600
+                    },
+                }
+        }}
+
+        cost = round(duration*rate,2)
+        self.assertEqual(cost, 0.45)
+
+        expected_output = ("Invoice Month,Project - Allocation,Project - Allocation ID,Manager (PI),Invoice Email,Invoice Address,Institution,Institution - Specific Code,SU Hours (GBhr or SUhr),SU Type,Rate,Cost\n"
+                            "2023-01,namespace1,namespace1,PI1,,,,76,35,OpenShift CPU,0.013,0.46\n")
+
+        with tempfile.NamedTemporaryFile(mode="w+") as tmp:
+            utils.write_metrics_by_namespace(test_metrics_dict, tmp.name, "2023-01")
+            self.assertEqual(tmp.read(), expected_output)
+
+
 class TestGetServiceUnit(TestCase):
 
     def test_cpu_only(self):
