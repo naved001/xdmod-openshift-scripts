@@ -111,36 +111,6 @@ def upload_to_s3(file, bucket, location):
     response = s3.upload_file(file, Bucket=bucket, Key=location)
 
 
-def query_metric(openshift_url, token, metric, report_start_date, report_end_date):
-    """Queries metric from prometheus/thanos for the provided openshift_url"""
-    data = None
-    headers = {"Authorization": f"Bearer {token}"}
-    day_url_vars = f"start={report_start_date}T00:00:00Z&end={report_end_date}T23:59:59Z"
-    url = f"{openshift_url}/api/v1/query_range?query={metric}&{day_url_vars}&step={STEP_MIN}m"
-
-    retries = Retry(total=3, backoff_factor=1, status_forcelist=[429, 500, 502, 503, 504])
-    session = requests.Session()
-    session.mount("https://", HTTPAdapter(max_retries=retries))
-
-    print(f"Retrieving metric: {metric}")
-
-    for _ in range(3):
-        response = session.get(url, headers=headers, verify=True)
-
-        if response.status_code != 200:
-            print(f"{response.status_code} Response: {response.reason}")
-        else:
-            data = response.json()["data"]["result"]
-            if data:
-                break
-            print("Empty result set")
-        time.sleep(3)
-
-    if not data:
-        raise EmptyResultError(f"Error retrieving metric: {metric}")
-    return data
-
-
 def get_namespace_attributes():
     """
     Returns allocation attributes from coldfront associated
