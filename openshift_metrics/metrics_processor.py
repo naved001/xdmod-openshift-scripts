@@ -22,9 +22,10 @@ class MetricsProcessor:
             gpu_resource = None
             node_model = None
 
-            unique_name = namespace + "+" + pod
-            if unique_name not in self.merged_data:
-                self.merged_data[unique_name] = {"namespace": namespace, "metrics": {}}
+            if namespace not in self.merged_data:
+                self.merged_data[namespace] = {}
+            if pod not in self.merged_data[namespace]:
+                self.merged_data[namespace][pod] = {"metrics": {}}
 
             if metric_name == "gpu_request":
                 gpu_type = metric["metric"].get(
@@ -35,25 +36,29 @@ class MetricsProcessor:
 
             for value in metric["values"]:
                 epoch_time = value[0]
-                if epoch_time not in self.merged_data[unique_name]["metrics"]:
-                    self.merged_data[unique_name]["metrics"][epoch_time] = {}
-                self.merged_data[unique_name]["metrics"][epoch_time][
+
+                if epoch_time not in self.merged_data[namespace][pod]["metrics"]:
+                    self.merged_data[namespace][pod]["metrics"][epoch_time] = {}
+
+                self.merged_data[namespace][pod]["metrics"][epoch_time][
                     metric_name
                 ] = value[1]
                 if gpu_type:
-                    self.merged_data[unique_name]["metrics"][epoch_time][
+                    self.merged_data[namespace][pod]["metrics"][epoch_time][
                         "gpu_type"
                     ] = gpu_type
                 if gpu_resource:
-                    self.merged_data[unique_name]["metrics"][epoch_time][
+                    self.merged_data[namespace][pod]["metrics"][epoch_time][
                         "gpu_resource"
                     ] = gpu_resource
                 if node_model:
-                    self.merged_data[unique_name]["metrics"][epoch_time][
+                    self.merged_data[namespace][pod]["metrics"][epoch_time][
                         "node_model"
                     ] = node_model
                 if node:
-                    self.merged_data[unique_name]["metrics"][epoch_time]["node"] = node
+                    self.merged_data[namespace][pod]["metrics"][epoch_time][
+                        "node"
+                    ] = node
 
     def condense_metrics(self, metrics_to_check: List[str]) -> Dict:
         """
@@ -64,41 +69,48 @@ class MetricsProcessor:
         interval = self.interval_minutes * 60
         condensed_dict = {}
 
-        for pod, pod_dict in self.merged_data.items():
-            metrics_dict = pod_dict["metrics"]
-            new_metrics_dict = {}
-            epoch_times_list = sorted(metrics_dict.keys())
+        for namespace, pods in self.merged_data.items():
 
-            start_epoch_time = epoch_times_list[0]
+            if namespace not in condensed_dict:
+                condensed_dict[namespace] = {}
 
-            start_metric_dict = metrics_dict[start_epoch_time].copy()
+            for pod, pod_dict in pods.items():
 
-            for i in range(len(epoch_times_list)):
-                epoch_time = epoch_times_list[i]
-                same_metrics = True
-                continuous_metrics = True
-                for metric in metrics_to_check:
-                    if metrics_dict[start_epoch_time].get(metric, 0) != metrics_dict[epoch_time].get(metric, 0):  # fmt: skip
-                        same_metrics = False
+                metrics_dict = pod_dict["metrics"]
+                new_metrics_dict = {}
+                epoch_times_list = sorted(metrics_dict.keys())
 
-                if i != 0 and epoch_time - epoch_times_list[i - 1] > interval:
-                    # i.e. if the difference between 2 consecutive timestamps
-                    # is more than the expected frequency then the pod was stopped
-                    continuous_metrics = False
+                start_epoch_time = epoch_times_list[0]
 
-                if not same_metrics or not continuous_metrics:
-                    duration = epoch_times_list[i - 1] - start_epoch_time + interval
-                    start_metric_dict["duration"] = duration
-                    new_metrics_dict[start_epoch_time] = start_metric_dict
-                    start_epoch_time = epoch_time
-                    start_metric_dict = metrics_dict[start_epoch_time].copy()
+                start_metric_dict = metrics_dict[start_epoch_time].copy()
 
-            duration = epoch_time - start_epoch_time + interval
-            start_metric_dict["duration"] = duration
-            new_metrics_dict[start_epoch_time] = start_metric_dict
+                for i in range(len(epoch_times_list)):
+                    epoch_time = epoch_times_list[i]
+                    same_metrics = True
+                    continuous_metrics = True
+                    for metric in metrics_to_check:
+                        # If either cpu, memory or gpu request is diferent.
+                        if metrics_dict[start_epoch_time].get(metric, 0) != metrics_dict[epoch_time].get(metric, 0):  # fmt: skip
+                            same_metrics = False
 
-            new_pod_dict = pod_dict.copy()
-            new_pod_dict["metrics"] = new_metrics_dict
-            condensed_dict[pod] = new_pod_dict
+                    if i != 0 and epoch_time - epoch_times_list[i - 1] > interval:
+                        # i.e. if the difference between 2 consecutive timestamps
+                        # is more than the expected frequency then the pod was stopped
+                        continuous_metrics = False
+
+                    if not same_metrics or not continuous_metrics:
+                        duration = epoch_times_list[i - 1] - start_epoch_time + interval
+                        start_metric_dict["duration"] = duration
+                        new_metrics_dict[start_epoch_time] = start_metric_dict
+                        start_epoch_time = epoch_time
+                        start_metric_dict = metrics_dict[start_epoch_time].copy()
+
+                duration = epoch_time - start_epoch_time + interval
+                start_metric_dict["duration"] = duration
+                new_metrics_dict[start_epoch_time] = start_metric_dict
+
+                new_pod_dict = pod_dict.copy()
+                new_pod_dict["metrics"] = new_metrics_dict
+                condensed_dict[namespace][pod] = new_pod_dict
 
         return condensed_dict

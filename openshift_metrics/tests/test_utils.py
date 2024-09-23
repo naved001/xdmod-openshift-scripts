@@ -84,65 +84,65 @@ class TestWriteMetricsByPod(TestCase):
             }
         }
         test_metrics_dict = {
-            "pod1": {
-                "namespace": "namespace1",
-                "metrics": {
-                    0: {
-                        "cpu_request": 10,
-                        "memory_request": 1048576,
-                        "duration": 120,
-                        "node": "wrk-1",
-                        "node_model": "Dell",
-                    },
-                    120: {
-                        "cpu_request": 20,
-                        "memory_request": 1048576,
-                        "duration": 60,
-                        "node": "wrk-2",
-                        "node_model": "Lenovo"
+            "namespace1": {
+                "pod1": {
+                    "metrics": {
+                        0: {
+                            "cpu_request": 10,
+                            "memory_request": 1048576,
+                            "duration": 120,
+                            "node": "wrk-1",
+                            "node_model": "Dell",
+                        },
+                        120: {
+                            "cpu_request": 20,
+                            "memory_request": 1048576,
+                            "duration": 60,
+                            "node": "wrk-2",
+                            "node_model": "Lenovo"
+                        }
+                    }
+                },
+                "pod2": {
+                    "metrics": {
+                        0: {
+                            "cpu_request": 20,
+                            "memory_request": 10485760,
+                            "duration": 60
+                        },
+                        60: {
+                            "cpu_request": 25,
+                            "memory_request": 10485760,
+                            "duration": 60
+                        },
+                        120: {
+                            "cpu_request": 20,
+                            "memory_request": 10485760,
+                            "duration": 60
+                        }
                     }
                 }
             },
-            "pod2": {
-                "namespace": "namespace1",
-                "metrics": {
-                    0: {
-                        "cpu_request": 20,
-                        "memory_request": 10485760,
-                        "duration": 60
-                    },
-                    60: {
-                        "cpu_request": 25,
-                        "memory_request": 10485760,
-                        "duration": 60
-                    },
-                    120: {
-                        "cpu_request": 20,
-                        "memory_request": 10485760,
-                        "duration": 60
+            "namespace2": {
+                "pod3": {
+                    "metrics": {
+                        0: {
+                            "cpu_request": 45,
+                            "memory_request": 104857600,
+                            "duration": 180
+                        },
                     }
-                }
-            },
-            "pod3": {
-                "namespace": "namespace2",
-                "metrics": {
-                    0: {
-                        "cpu_request": 45,
-                        "memory_request": 104857600,
-                        "duration": 180
-                    },
-                }
-            },
-            "pod4": { # this results in 0.5 SU
-                "namespace": "namespace2",
-                "metrics": {
-                    0: {
-                        "cpu_request": 0.5,
-                        "memory_request": 2147483648,
-                        "duration": 3600
-                    },
-                }
-            },
+                },
+                "pod4": { # this results in 0.5 SU
+                    "metrics": {
+                        0: {
+                            "cpu_request": 0.5,
+                            "memory_request": 2147483648,
+                            "duration": 3600
+                        },
+                    }
+                },
+            }
         }
 
         expected_output = ("Namespace,Coldfront_PI Name,Coldfront Project ID ,Pod Start Time,Pod End Time,Duration (Hours),Pod Name,CPU Request,GPU Request,GPU Type,GPU Resource,Node,Node Model,Memory Request (GiB),Determining Resource,SU Type,SU Count\n"
@@ -175,73 +175,72 @@ class TestWriteMetricsByNamespace(TestCase):
             }
         }
         test_metrics_dict = {
-            "pod1": {
-                "namespace": "namespace1",
-                "metrics": {
-                    0: {
-                        "cpu_request": 2,
-                        "memory_request": 4 * 2**30,
-                        "duration": 43200
-                    },
-                    43200: {
-                        "cpu_request": 4,
-                        "memory_request": 4 * 2**30,
-                        "duration": 43200
+            "namespace1": {
+                "pod1": {
+                    "metrics": {
+                        0: {
+                            "cpu_request": 2,
+                            "memory_request": 4 * 2**30,
+                            "duration": 43200
+                        },
+                        43200: {
+                            "cpu_request": 4,
+                            "memory_request": 4 * 2**30,
+                            "duration": 43200
+                        }
+                    }
+                },
+                "pod2": {
+                    "metrics": {
+                        0: {
+                            "cpu_request": 4,
+                            "memory_request": 1 * 2**30,
+                            "duration": 86400
+                        },
+                        86400: {
+                            "cpu_request": 20,
+                            "memory_request": 1 * 2**30,
+                            "duration": 172800
+                        }
                     }
                 }
             },
-            "pod2": {
-                "namespace": "namespace1",
-                "metrics": {
-                    0: {
-                        "cpu_request": 4,
-                        "memory_request": 1 * 2**30,
-                        "duration": 86400
-                    },
-                    86400: {
-                        "cpu_request": 20,
-                        "memory_request": 1 * 2**30,
-                        "duration": 172800
+            "namespace2": {
+                "pod3": {
+                    "metrics": {
+                        0: {
+                            "cpu_request": 1,
+                            "memory_request": 8 * 2**30,
+                            "duration": 172800
+                        },
                     }
-                }
+                },
+                "pod4": {
+                    "metrics": {
+                        0: {
+                            "cpu_request": 1,
+                            "memory_request": 8 * 2**30,
+                            "gpu_request": 1,
+                            "gpu_type": utils.GPU_A100,
+                            "gpu_resource": utils.WHOLE_GPU,
+                            "duration": 172700 # little under 48 hours, expect to be rounded up in the output
+                        },
+                    }
+                },
+                "pod5": {
+                    "gpu_type": utils.GPU_A100_SXM4,
+                    "metrics": {
+                        0: {
+                            "cpu_request": 24,
+                            "memory_request": 8 * 2**30,
+                            "gpu_request": 1,
+                            "gpu_type": utils.GPU_A100_SXM4,
+                            "gpu_resource": utils.WHOLE_GPU,
+                            "duration": 172800
+                        },
+                    }
             },
-            "pod3": {
-                "namespace": "namespace2",
-                "metrics": {
-                    0: {
-                        "cpu_request": 1,
-                        "memory_request": 8 * 2**30,
-                        "duration": 172800
-                    },
-                }
-            },
-            "pod4": {
-                "namespace": "namespace2",
-                "metrics": {
-                    0: {
-                        "cpu_request": 1,
-                        "memory_request": 8 * 2**30,
-                        "gpu_request": 1,
-                        "gpu_type": utils.GPU_A100,
-                        "gpu_resource": utils.WHOLE_GPU,
-                        "duration": 172700 # little under 48 hours, expect to be rounded up in the output
-                    },
-                }
-            },
-            "pod5": {
-                "namespace": "namespace2",
-                "gpu_type": utils.GPU_A100_SXM4,
-                "metrics": {
-                    0: {
-                        "cpu_request": 24,
-                        "memory_request": 8 * 2**30,
-                        "gpu_request": 1,
-                        "gpu_type": utils.GPU_A100_SXM4,
-                        "gpu_resource": utils.WHOLE_GPU,
-                        "duration": 172800
-                    },
-                }
-            },
+            }
         }
 
         expected_output = ("Invoice Month,Project - Allocation,Project - Allocation ID,Manager (PI),Invoice Email,Invoice Address,Institution,Institution - Specific Code,SU Hours (GBhr or SUhr),SU Type,Rate,Cost\n"
@@ -275,16 +274,19 @@ class TestWriteMetricsByNamespace(TestCase):
         rate = 0.013
 
         test_metrics_dict = {
-            "pod1": {
-                "namespace": "namespace1",
-                "metrics": {
-                    0: {
-                        "cpu_request": 1,
-                        "memory_request": 4 * 2**30,
-                        "duration": 35*3600
-                    },
+            "namespace1": {
+                "pod1": {
+                    "namespace": "namespace1",
+                    "metrics": {
+                        0: {
+                            "cpu_request": 1,
+                            "memory_request": 4 * 2**30,
+                            "duration": 35*3600
+                        },
+                    }
                 }
-        }}
+            }
+        }
 
         cost = round(duration*rate,2)
         self.assertEqual(cost, 0.45)

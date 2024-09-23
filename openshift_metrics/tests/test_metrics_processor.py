@@ -31,22 +31,22 @@ class TestMergeMetrics(TestCase):
             },
         ]
         expected_output_dict = {
-            "namespace1+pod1": {
-                "namespace": "namespace1",
-                "metrics": {
-                    0: {"cpu": 10},
-                    60: {"cpu": 15},
-                    120: {"cpu": 20},
+            "namespace1": {
+                "pod1": {
+                    "metrics": {
+                        0: {"cpu": 10},
+                        60: {"cpu": 15},
+                        120: {"cpu": 20},
+                    },
                 },
-            },
-            "namespace1+pod2": {
-                "namespace": "namespace1",
-                "metrics": {
-                    0: {"cpu": 30},
-                    60: {"cpu": 35},
-                    120: {"cpu": 40},
+                "pod2": {
+                    "metrics": {
+                        0: {"cpu": 30},
+                        60: {"cpu": 35},
+                        120: {"cpu": 40},
+                    },
                 },
-            },
+            }
         }
         processor = metrics_processor.MetricsProcessor()
         processor.merge_metrics("cpu", test_metric_list)
@@ -78,40 +78,40 @@ class TestMergeMetrics(TestCase):
             },
         ]
         output_dict = {
-            "namespace1+pod1": {
-                "namespace": "namespace1",
-                "metrics": {
-                    0: {"cpu": 10},
-                    60: {"cpu": 15},
-                    120: {"cpu": 20},
+            "namespace1": {
+                "pod1": {
+                    "metrics": {
+                        0: {"cpu": 10},
+                        60: {"cpu": 15},
+                        120: {"cpu": 20},
+                    },
                 },
-            },
-            "namespace1+pod2": {
-                "namespace": "namespace1",
-                "metrics": {
-                    0: {"cpu": 30},
-                    60: {"cpu": 35},
-                    120: {"cpu": 40},
+                "pod2": {
+                    "metrics": {
+                        0: {"cpu": 30},
+                        60: {"cpu": 35},
+                        120: {"cpu": 40},
+                    },
                 },
-            },
+            }
         }
         expected_output_dict = {
-            "namespace1+pod1": {
-                "namespace": "namespace1",
-                "metrics": {
-                    0: {"cpu": 10, "mem": 100},
-                    60: {"cpu": 15, "mem": 150},
-                    120: {"cpu": 20, "mem": 200},
+            "namespace1": {
+                "pod1": {
+                    "metrics": {
+                        0: {"cpu": 10, "mem": 100},
+                        60: {"cpu": 15, "mem": 150},
+                        120: {"cpu": 20, "mem": 200},
+                    },
                 },
-            },
-            "namespace1+pod2": {
-                "namespace": "namespace1",
-                "metrics": {
-                    0: {"cpu": 30},
-                    60: {"cpu": 35, "mem": 300},
-                    120: {"cpu": 40},
+                "pod2": {
+                    "metrics": {
+                        0: {"cpu": 30},
+                        60: {"cpu": 35, "mem": 300},
+                        120: {"cpu": 40},
+                    },
                 },
-            },
+            }
         }
         processor = metrics_processor.MetricsProcessor(merged_data=output_dict)
         processor.merge_metrics("mem", test_metric_list)
@@ -147,15 +147,16 @@ class TestMergeMetrics(TestCase):
             },
         ]
         expected_output_dict = {
-            "namespace1+pod1": {
-                "namespace": "namespace1",
-                "metrics": {
-                    0: {"cpu": 10},
-                    60: {"cpu": 8},
-                    120: {"cpu": 8},
-                    180: {"cpu": 10},
+            "namespace1": {
+                "pod1": {
+                    "metrics": {
+                        0: {"cpu": 10},
+                        60: {"cpu": 8},
+                        120: {"cpu": 8},
+                        180: {"cpu": 10},
+                    },
                 },
-            },
+            }
         }
         processor = metrics_processor.MetricsProcessor()
         processor.merge_metrics("cpu", test_metric_list)
@@ -194,20 +195,22 @@ class TestMergeMetrics(TestCase):
             },
         ]
         expected_output_dict = {
-            "namespace1+podA": {
-                "namespace": "namespace1",
-                "metrics": {
-                    0: {"cpu": 10},
-                    60: {"cpu": 15},
-                    120: {"cpu": 20},
-                },
+            "namespace1": {
+                "podA": {
+                    "metrics": {
+                        0: {"cpu": 10},
+                        60: {"cpu": 15},
+                        120: {"cpu": 20},
+                    },
+                }
             },
-            "namespace2+podA": {
-                "namespace": "namespace2",
-                "metrics": {
-                    0: {"cpu": 30},
-                    60: {"cpu": 35},
-                    120: {"cpu": 40},
+            "namespace2": {
+                "podA": {
+                    "metrics": {
+                        0: {"cpu": 30},
+                        60: {"cpu": 35},
+                        120: {"cpu": 40},
+                    },
                 },
             },
         }
@@ -232,39 +235,41 @@ class TestMergeMetrics(TestCase):
             },
         ]
         output_dict = {
-            "namespace1+pod1": {
-                "namespace": "namespace1",
-                "metrics": {
-                    0: {"cpu": 10},
-                    60: {"cpu": 15},
-                    120: {"cpu": 20},
+            "namespace1": {
+                "pod1": {
+                    "metrics": {
+                        0: {"cpu": 10},
+                        60: {"cpu": 15},
+                        120: {"cpu": 20},
+                    },
                 },
-            },
+            }
         }
         expected_output_dict = {
-            "namespace1+pod1": {
-                "namespace": "namespace1",
-                "metrics": {
-                    0: {
-                        "cpu": 10,
-                        "gpu_request": 1,
-                        "gpu_type": "Tesla-V100-PCIE-32GB",
-                        "gpu_resource": "nvidia.com/gpu",
-                    },
-                    60: {
-                        "cpu": 15,
-                        "gpu_request": 1,
-                        "gpu_type": "Tesla-V100-PCIE-32GB",
-                        "gpu_resource": "nvidia.com/gpu",
-                    },
-                    120: {
-                        "cpu": 20,
-                        "gpu_request": 2,
-                        "gpu_type": "Tesla-V100-PCIE-32GB",
-                        "gpu_resource": "nvidia.com/gpu",
+            "namespace1": {
+                "pod1": {
+                    "metrics": {
+                        0: {
+                            "cpu": 10,
+                            "gpu_request": 1,
+                            "gpu_type": "Tesla-V100-PCIE-32GB",
+                            "gpu_resource": "nvidia.com/gpu",
+                        },
+                        60: {
+                            "cpu": 15,
+                            "gpu_request": 1,
+                            "gpu_type": "Tesla-V100-PCIE-32GB",
+                            "gpu_resource": "nvidia.com/gpu",
+                        },
+                        120: {
+                            "cpu": 20,
+                            "gpu_request": 2,
+                            "gpu_type": "Tesla-V100-PCIE-32GB",
+                            "gpu_resource": "nvidia.com/gpu",
+                        },
                     },
                 },
-            },
+            }
         }
         processor = metrics_processor.MetricsProcessor(merged_data=output_dict)
         processor.merge_metrics("gpu_request", test_metric_list)
@@ -274,34 +279,38 @@ class TestMergeMetrics(TestCase):
 class TestCondenseMetrics(TestCase):
     def test_condense_metrics(self):
         test_input_dict = {
-            "pod1": {
-                "metrics": {
-                    0: {
-                        "cpu": 10,
-                        "mem": 15,
-                    },
-                    900: {
-                        "cpu": 10,
-                        "mem": 15,
-                    },
-                }
-            },
-            "pod2": {
-                "metrics": {
-                    0: {
-                        "cpu": 2,
-                        "mem": 256,
-                    },
-                    900: {
-                        "cpu": 2,
-                        "mem": 256,
-                    },
-                }
-            },
+            "namespace1": {
+                "pod1": {
+                    "metrics": {
+                        0: {
+                            "cpu": 10,
+                            "mem": 15,
+                        },
+                        900: {
+                            "cpu": 10,
+                            "mem": 15,
+                        },
+                    }
+                },
+                "pod2": {
+                    "metrics": {
+                        0: {
+                            "cpu": 2,
+                            "mem": 256,
+                        },
+                        900: {
+                            "cpu": 2,
+                            "mem": 256,
+                        },
+                    }
+                },
+            }
         }
         expected_condensed_dict = {
-            "pod1": {"metrics": {0: {"cpu": 10, "mem": 15, "duration": 1800}}},
-            "pod2": {"metrics": {0: {"cpu": 2, "mem": 256, "duration": 1800}}},
+            "namespace1": {
+                "pod1": {"metrics": {0: {"cpu": 10, "mem": 15, "duration": 1800}}},
+                "pod2": {"metrics": {0: {"cpu": 2, "mem": 256, "duration": 1800}}},
+            }
         }
         processor = metrics_processor.MetricsProcessor(merged_data=test_input_dict)
         condensed_dict = processor.condense_metrics(["cpu", "mem"])
@@ -309,17 +318,21 @@ class TestCondenseMetrics(TestCase):
 
     def test_condense_metrics_no_interval(self):
         test_input_dict = {
-            "pod1": {
-                "metrics": {
-                    0: {
-                        "cpu": 10,
-                        "mem": 15,
+            "namespace1": {
+                "pod1": {
+                    "metrics": {
+                        0: {
+                            "cpu": 10,
+                            "mem": 15,
+                        }
                     }
-                }
-            },
+                },
+            }
         }
         expected_condensed_dict = {
-            "pod1": {"metrics": {0: {"cpu": 10, "mem": 15, "duration": 900}}},
+            "namespace1": {
+                "pod1": {"metrics": {0: {"cpu": 10, "mem": 15, "duration": 900}}},
+            }
         }
         processor = metrics_processor.MetricsProcessor(merged_data=test_input_dict)
         condensed_dict = processor.condense_metrics(["cpu", "mem"])
@@ -327,35 +340,39 @@ class TestCondenseMetrics(TestCase):
 
     def test_condense_metrics_with_change(self):
         test_input_dict = {
-            "pod2": {
-                "metrics": {
-                    0: {
-                        "cpu": 20,
-                        "mem": 25,
-                    },
-                    900: {
-                        "cpu": 20,
-                        "mem": 25,
-                    },
-                    1800: {
-                        "cpu": 25,
-                        "mem": 25,
-                    },
-                    2700: {
-                        "cpu": 20,
-                        "mem": 25,
-                    },
-                }
-            },
+            "namespace1": {
+                "pod2": {
+                    "metrics": {
+                        0: {
+                            "cpu": 20,
+                            "mem": 25,
+                        },
+                        900: {
+                            "cpu": 20,
+                            "mem": 25,
+                        },
+                        1800: {
+                            "cpu": 25,
+                            "mem": 25,
+                        },
+                        2700: {
+                            "cpu": 20,
+                            "mem": 25,
+                        },
+                    }
+                },
+            }
         }
         expected_condensed_dict = {
-            "pod2": {
-                "metrics": {
-                    0: {"cpu": 20, "mem": 25, "duration": 1800},
-                    1800: {"cpu": 25, "mem": 25, "duration": 900},
-                    2700: {"cpu": 20, "mem": 25, "duration": 900},
-                }
-            },
+            "namespace1": {
+                "pod2": {
+                    "metrics": {
+                        0: {"cpu": 20, "mem": 25, "duration": 1800},
+                        1800: {"cpu": 25, "mem": 25, "duration": 900},
+                        2700: {"cpu": 20, "mem": 25, "duration": 900},
+                    }
+                },
+            }
         }
         processor = metrics_processor.MetricsProcessor(merged_data=test_input_dict)
         condensed_dict = processor.condense_metrics(["cpu", "mem"])
@@ -363,25 +380,29 @@ class TestCondenseMetrics(TestCase):
 
     def test_condense_metrics_skip_metric(self):
         test_input_dict = {
-            "pod3": {
-                "metrics": {
-                    0: {
-                        "cpu": 30,
-                        "mem": 35,
-                        "gpu": 1,
-                    },
-                    900: {
-                        "cpu": 30,
-                        "mem": 35,
-                        "gpu": 2,
-                    },
+            "namespace1": {
+                "pod3": {
+                    "metrics": {
+                        0: {
+                            "cpu": 30,
+                            "mem": 35,
+                            "gpu": 1,
+                        },
+                        900: {
+                            "cpu": 30,
+                            "mem": 35,
+                            "gpu": 2,
+                        },
+                    }
                 }
             }
         }
         expected_condensed_dict = {
-            "pod3": {
-                "metrics": {0: {"cpu": 30, "mem": 35, "gpu": 1, "duration": 1800}}
-            },
+            "namespace1": {
+                "pod3": {
+                    "metrics": {0: {"cpu": 30, "mem": 35, "gpu": 1, "duration": 1800}}
+                },
+            }
         }
         processor = metrics_processor.MetricsProcessor(merged_data=test_input_dict)
         condensed_dict = processor.condense_metrics(["cpu", "mem"])
@@ -389,60 +410,64 @@ class TestCondenseMetrics(TestCase):
 
     def test_condense_metrics_with_timeskips(self):
         test_input_dict = {
-            "pod1": {
-                "metrics": {
-                    0: {
-                        "cpu": 1,
-                        "mem": 4,
-                    },
-                    900: {
-                        "cpu": 1,
-                        "mem": 4,
-                    },
-                    1800: {
-                        "cpu": 1,
-                        "mem": 4,
-                    },
-                    5400: {  # time skipped
-                        "cpu": 1,
-                        "mem": 4,
-                    },
-                    6300: {
-                        "cpu": 1,
-                        "mem": 4,
-                    },
-                    8100: {  # metric changed and time skipped
-                        "cpu": 2,
-                        "mem": 8,
-                    },
-                    9000: {
-                        "cpu": 2,
-                        "mem": 8,
-                    },
-                }
-            },
-            "pod2": {
-                "metrics": {
-                    0: {
-                        "cpu": 2,
-                        "mem": 16,
-                    },
-                    900: {
-                        "cpu": 2,
-                        "mem": 16,
-                    },
-                }
-            },
+            "namespace1": {
+                "pod1": {
+                    "metrics": {
+                        0: {
+                            "cpu": 1,
+                            "mem": 4,
+                        },
+                        900: {
+                            "cpu": 1,
+                            "mem": 4,
+                        },
+                        1800: {
+                            "cpu": 1,
+                            "mem": 4,
+                        },
+                        5400: {  # time skipped
+                            "cpu": 1,
+                            "mem": 4,
+                        },
+                        6300: {
+                            "cpu": 1,
+                            "mem": 4,
+                        },
+                        8100: {  # metric changed and time skipped
+                            "cpu": 2,
+                            "mem": 8,
+                        },
+                        9000: {
+                            "cpu": 2,
+                            "mem": 8,
+                        },
+                    }
+                },
+                "pod2": {
+                    "metrics": {
+                        0: {
+                            "cpu": 2,
+                            "mem": 16,
+                        },
+                        900: {
+                            "cpu": 2,
+                            "mem": 16,
+                        },
+                    }
+                },
+            }
         }
         expected_condensed_dict = {
-            "pod1": {
-                "metrics": {
-                    0: {"cpu": 1, "mem": 4, "duration": 2700},
-                    5400: {"cpu": 1, "mem": 4, "duration": 1800},
-                    8100: {"cpu": 2, "mem": 8, "duration": 1800},
-                }
-            },
-            "pod2": {"metrics": {0: {"cpu": 2, "mem": 16, "duration": 1800}}},
+            "namespace1": {
+                "pod1": {
+                    "metrics": {
+                        0: {"cpu": 1, "mem": 4, "duration": 2700},
+                        5400: {"cpu": 1, "mem": 4, "duration": 1800},
+                        8100: {"cpu": 2, "mem": 8, "duration": 1800},
+                    }
+                },
+                "pod2": {"metrics": {0: {"cpu": 2, "mem": 16, "duration": 1800}}},
+            }
         }
         processor = metrics_processor.MetricsProcessor(merged_data=test_input_dict)
         condensed_dict = processor.condense_metrics(["cpu", "mem"])
@@ -450,97 +475,101 @@ class TestCondenseMetrics(TestCase):
 
     def test_condense_metrics_with_changing_gpu(self):
         test_input_dict = {
-            "pod1": {
-                "metrics": {
-                    0: {
-                        "cpu": 1,
-                        "mem": 4,
-                    },
-                    900: {
-                        "cpu": 1,
-                        "mem": 4,
-                    },
-                    1800: {  # pod acquires a GPU
-                        "cpu": 1,
-                        "mem": 4,
-                        "gpu_request": 1,
-                        "gpu_type": utils.GPU_V100,
-                    },
-                    2700: {
-                        "cpu": 1,
-                        "mem": 4,
-                        "gpu_request": 1,
-                        "gpu_type": utils.GPU_V100,
-                    },
-                    3600: {  # type of GPU is changed
-                        "cpu": 1,
-                        "mem": 4,
-                        "gpu_request": 1,
-                        "gpu_type": utils.GPU_A100_SXM4,
-                    },
-                    4500: {
-                        "cpu": 1,
-                        "mem": 4,
-                        "gpu_request": 1,
-                        "gpu_type": utils.GPU_A100_SXM4,
-                    },
-                    5400: {
-                        "cpu": 1,
-                        "mem": 4,
-                        "gpu_request": 1,
-                        "gpu_type": utils.GPU_A100_SXM4,
-                    },
-                    6300: {  # count of GPU is changed
-                        "cpu": 1,
-                        "mem": 4,
-                        "gpu_request": 3,
-                        "gpu_type": utils.GPU_A100_SXM4,
-                    },
-                    7200: {
-                        "cpu": 1,
-                        "mem": 4,
-                        "gpu_request": 3,
-                        "gpu_type": utils.GPU_A100_SXM4,
-                    },
-                    8100: {  # no longer using GPUs
-                        "cpu": 1,
-                        "mem": 4,
-                    },
-                }
-            },
+            "namespace1": {
+                "pod1": {
+                    "metrics": {
+                        0: {
+                            "cpu": 1,
+                            "mem": 4,
+                        },
+                        900: {
+                            "cpu": 1,
+                            "mem": 4,
+                        },
+                        1800: {  # pod acquires a GPU
+                            "cpu": 1,
+                            "mem": 4,
+                            "gpu_request": 1,
+                            "gpu_type": utils.GPU_V100,
+                        },
+                        2700: {
+                            "cpu": 1,
+                            "mem": 4,
+                            "gpu_request": 1,
+                            "gpu_type": utils.GPU_V100,
+                        },
+                        3600: {  # type of GPU is changed
+                            "cpu": 1,
+                            "mem": 4,
+                            "gpu_request": 1,
+                            "gpu_type": utils.GPU_A100_SXM4,
+                        },
+                        4500: {
+                            "cpu": 1,
+                            "mem": 4,
+                            "gpu_request": 1,
+                            "gpu_type": utils.GPU_A100_SXM4,
+                        },
+                        5400: {
+                            "cpu": 1,
+                            "mem": 4,
+                            "gpu_request": 1,
+                            "gpu_type": utils.GPU_A100_SXM4,
+                        },
+                        6300: {  # count of GPU is changed
+                            "cpu": 1,
+                            "mem": 4,
+                            "gpu_request": 3,
+                            "gpu_type": utils.GPU_A100_SXM4,
+                        },
+                        7200: {
+                            "cpu": 1,
+                            "mem": 4,
+                            "gpu_request": 3,
+                            "gpu_type": utils.GPU_A100_SXM4,
+                        },
+                        8100: {  # no longer using GPUs
+                            "cpu": 1,
+                            "mem": 4,
+                        },
+                    }
+                },
+            }
         }
         expected_condensed_dict = {
-            "pod1": {
-                "metrics": {
-                    0: {"cpu": 1, "mem": 4, "duration": 1800},
-                    1800: {
-                        "cpu": 1,
-                        "mem": 4,
-                        "duration": 1800,
-                        "gpu_request": 1,
-                        "gpu_type": utils.GPU_V100,
-                    },
-                    3600: {
-                        "cpu": 1,
-                        "mem": 4,
-                        "duration": 2700,
-                        "gpu_request": 1,
-                        "gpu_type": utils.GPU_A100_SXM4,
-                    },
-                    6300: {
-                        "cpu": 1,
-                        "mem": 4,
-                        "duration": 1800,
-                        "gpu_request": 3,
-                        "gpu_type": utils.GPU_A100_SXM4,
-                    },
-                    8100: {
-                        "cpu": 1,
-                        "mem": 4,
-                        "duration": 900,
-                    },
-                }
-            },
+            "namespace1": {
+                "pod1": {
+                    "metrics": {
+                        0: {"cpu": 1, "mem": 4, "duration": 1800},
+                        1800: {
+                            "cpu": 1,
+                            "mem": 4,
+                            "duration": 1800,
+                            "gpu_request": 1,
+                            "gpu_type": utils.GPU_V100,
+                        },
+                        3600: {
+                            "cpu": 1,
+                            "mem": 4,
+                            "duration": 2700,
+                            "gpu_request": 1,
+                            "gpu_type": utils.GPU_A100_SXM4,
+                        },
+                        6300: {
+                            "cpu": 1,
+                            "mem": 4,
+                            "duration": 1800,
+                            "gpu_request": 3,
+                            "gpu_type": utils.GPU_A100_SXM4,
+                        },
+                        8100: {
+                            "cpu": 1,
+                            "mem": 4,
+                            "duration": 900,
+                        },
+                    }
+                },
+            }
         }
         processor = metrics_processor.MetricsProcessor(merged_data=test_input_dict)
         condensed_dict = processor.condense_metrics(

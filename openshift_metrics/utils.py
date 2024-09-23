@@ -259,11 +259,9 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month):
 
     rows.append(headers)
 
-    for pod, pod_dict in condensed_metrics_dict.items():
-        namespace = pod_dict["namespace"]
-        pod_metrics_dict = pod_dict["metrics"]
-        namespace_annotation_dict = namespace_annotations.get(namespace, {})
+    for namespace, pods in condensed_metrics_dict.items():
 
+        namespace_annotation_dict = namespace_annotations.get(namespace, {})
         cf_pi = namespace_annotation_dict.get("cf_pi")
         cf_institution_code = namespace_annotation_dict.get("institution_code")
 
@@ -281,26 +279,30 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month):
                 "total_cost": 0,
             }
 
-        for epoch_time, pod_metric_dict in pod_metrics_dict.items():
-            duration_in_hours = Decimal(pod_metric_dict["duration"]) / 3600
-            cpu_request = Decimal(pod_metric_dict.get("cpu_request", 0))
-            gpu_request = Decimal(pod_metric_dict.get("gpu_request", 0))
-            gpu_type = pod_metric_dict.get("gpu_type")
-            gpu_resource = pod_metric_dict.get("gpu_resource")
-            memory_request = Decimal(pod_metric_dict.get("memory_request", 0)) / 2**30
+        for pod, pod_dict in pods.items():
 
-            _, su_count, _ = get_service_unit(cpu_request, memory_request, gpu_request, gpu_type, gpu_resource)
+            pod_metrics_dict = pod_dict["metrics"]
 
-            if gpu_type == GPU_A100:
-                metrics_by_namespace[namespace]["SU_A100_GPU_HOURS"] += su_count * duration_in_hours
-            elif gpu_type == GPU_A100_SXM4:
-                metrics_by_namespace[namespace]["SU_A100_SXM4_GPU_HOURS"] += su_count * duration_in_hours
-            elif gpu_type == GPU_V100:
-                metrics_by_namespace[namespace]["SU_V100_GPU_HOURS"] += su_count * duration_in_hours
-            elif gpu_type == GPU_UNKNOWN_TYPE:
-                metrics_by_namespace[namespace]["SU_UNKNOWN_GPU_HOURS"] += su_count * duration_in_hours
-            else:
-                metrics_by_namespace[namespace]["SU_CPU_HOURS"] += su_count * duration_in_hours
+            for epoch_time, pod_metric_dict in pod_metrics_dict.items():
+                duration_in_hours = Decimal(pod_metric_dict["duration"]) / 3600
+                cpu_request = Decimal(pod_metric_dict.get("cpu_request", 0))
+                gpu_request = Decimal(pod_metric_dict.get("gpu_request", 0))
+                gpu_type = pod_metric_dict.get("gpu_type")
+                gpu_resource = pod_metric_dict.get("gpu_resource")
+                memory_request = Decimal(pod_metric_dict.get("memory_request", 0)) / 2**30
+
+                _, su_count, _ = get_service_unit(cpu_request, memory_request, gpu_request, gpu_type, gpu_resource)
+
+                if gpu_type == GPU_A100:
+                    metrics_by_namespace[namespace]["SU_A100_GPU_HOURS"] += su_count * duration_in_hours
+                elif gpu_type == GPU_A100_SXM4:
+                    metrics_by_namespace[namespace]["SU_A100_SXM4_GPU_HOURS"] += su_count * duration_in_hours
+                elif gpu_type == GPU_V100:
+                    metrics_by_namespace[namespace]["SU_V100_GPU_HOURS"] += su_count * duration_in_hours
+                elif gpu_type == GPU_UNKNOWN_TYPE:
+                    metrics_by_namespace[namespace]["SU_UNKNOWN_GPU_HOURS"] += su_count * duration_in_hours
+                else:
+                    metrics_by_namespace[namespace]["SU_CPU_HOURS"] += su_count * duration_in_hours
 
     for namespace, metrics in metrics_by_namespace.items():
 
@@ -360,52 +362,52 @@ def write_metrics_by_pod(metrics_dict, file_name):
     ]
     rows.append(headers)
 
-    for pod, pod_dict in metrics_dict.items():
-        namespace = pod_dict["namespace"]
-        pod_metrics_dict = pod_dict["metrics"]
-        namespace_annotation_dict = namespace_annotations.get(namespace, {})
-        cf_pi = namespace_annotation_dict.get("cf_pi")
-        cf_project_id = namespace_annotation_dict.get("cf_project_id")
+    for namespace, pods in metrics_dict.items():
+        for pod, pod_dict in pods.items():
+            pod_metrics_dict = pod_dict["metrics"]
+            namespace_annotation_dict = namespace_annotations.get(namespace, {})
+            cf_pi = namespace_annotation_dict.get("cf_pi")
+            cf_project_id = namespace_annotation_dict.get("cf_project_id")
 
-        for epoch_time, pod_metric_dict in pod_metrics_dict.items():
-            start_time = datetime.datetime.utcfromtimestamp(float(epoch_time)).strftime(
-                "%Y-%m-%dT%H:%M:%S"
-            )
-            end_time = datetime.datetime.utcfromtimestamp(
-                float(epoch_time + pod_metric_dict["duration"])
-            ).strftime("%Y-%m-%dT%H:%M:%S")
-            duration = (Decimal(pod_metric_dict["duration"]) / 3600).quantize(Decimal(".0001"), rounding=decimal.ROUND_HALF_UP)
-            cpu_request = Decimal(pod_metric_dict.get("cpu_request", 0))
-            gpu_request = Decimal(pod_metric_dict.get("gpu_request", 0))
-            gpu_type = pod_metric_dict.get("gpu_type")
-            gpu_resource = pod_metric_dict.get("gpu_resource")
-            node = pod_metric_dict.get("node", "Unknown Node")
-            node_model = pod_metric_dict.get("node_model", "Unknown Model")
-            memory_request = (Decimal(pod_metric_dict.get("memory_request", 0)) / 2**30).quantize(Decimal(".0001"), rounding=decimal.ROUND_HALF_UP)
-            su_type, su_count, determining_resource = get_service_unit(
-                cpu_request, memory_request, gpu_request, gpu_type, gpu_resource
-            )
+            for epoch_time, pod_metric_dict in pod_metrics_dict.items():
+                start_time = datetime.datetime.utcfromtimestamp(float(epoch_time)).strftime(
+                    "%Y-%m-%dT%H:%M:%S"
+                )
+                end_time = datetime.datetime.utcfromtimestamp(
+                    float(epoch_time + pod_metric_dict["duration"])
+                ).strftime("%Y-%m-%dT%H:%M:%S")
+                duration = (Decimal(pod_metric_dict["duration"]) / 3600).quantize(Decimal(".0001"), rounding=decimal.ROUND_HALF_UP)
+                cpu_request = Decimal(pod_metric_dict.get("cpu_request", 0))
+                gpu_request = Decimal(pod_metric_dict.get("gpu_request", 0))
+                gpu_type = pod_metric_dict.get("gpu_type")
+                gpu_resource = pod_metric_dict.get("gpu_resource")
+                node = pod_metric_dict.get("node", "Unknown Node")
+                node_model = pod_metric_dict.get("node_model", "Unknown Model")
+                memory_request = (Decimal(pod_metric_dict.get("memory_request", 0)) / 2**30).quantize(Decimal(".0001"), rounding=decimal.ROUND_HALF_UP)
+                su_type, su_count, determining_resource = get_service_unit(
+                    cpu_request, memory_request, gpu_request, gpu_type, gpu_resource
+                )
 
-            info_list = [
-                namespace,
-                cf_pi,
-                cf_project_id,
-                start_time,
-                end_time,
-                duration,
-                pod,
-                cpu_request,
-                gpu_request,
-                gpu_type,
-                gpu_resource,
-                node,
-                node_model,
-                memory_request,
-                determining_resource,
-                su_type,
-                su_count,
-            ]
+                info_list = [
+                    namespace,
+                    cf_pi,
+                    cf_project_id,
+                    start_time,
+                    end_time,
+                    duration,
+                    pod,
+                    cpu_request,
+                    gpu_request,
+                    gpu_type,
+                    gpu_resource,
+                    node,
+                    node_model,
+                    memory_request,
+                    determining_resource,
+                    su_type,
+                    su_count,
+                ]
 
-            rows.append(info_list)
+                rows.append(info_list)
 
     csv_writer(rows, file_name)
