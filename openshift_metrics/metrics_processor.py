@@ -22,10 +22,8 @@ class MetricsProcessor:
             gpu_resource = None
             node_model = None
 
-            if namespace not in self.merged_data:
-                self.merged_data[namespace] = {}
-            if pod not in self.merged_data[namespace]:
-                self.merged_data[namespace][pod] = {"metrics": {}}
+            self.merged_data.setdefault(namespace, {})
+            self.merged_data[namespace].setdefault(pod, {"metrics": {}})
 
             if metric_name == "gpu_request":
                 gpu_type = metric["metric"].get(
@@ -37,8 +35,7 @@ class MetricsProcessor:
             for value in metric["values"]:
                 epoch_time = value[0]
 
-                if epoch_time not in self.merged_data[namespace][pod]["metrics"]:
-                    self.merged_data[namespace][pod]["metrics"][epoch_time] = {}
+                self.merged_data[namespace][pod]["metrics"].setdefault(epoch_time, {})
 
                 self.merged_data[namespace][pod]["metrics"][epoch_time][
                     metric_name
@@ -71,8 +68,7 @@ class MetricsProcessor:
 
         for namespace, pods in self.merged_data.items():
 
-            if namespace not in condensed_dict:
-                condensed_dict[namespace] = {}
+            condensed_dict.setdefault(namespace, {})
 
             for pod, pod_dict in pods.items():
 
