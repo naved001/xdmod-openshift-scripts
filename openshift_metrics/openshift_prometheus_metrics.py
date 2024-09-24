@@ -15,6 +15,7 @@
 
 import argparse
 from datetime import datetime, timedelta
+from prometheus_client import PrometheusClient
 import os
 import sys
 import json
@@ -77,24 +78,25 @@ def main():
 
 
     token = os.environ.get("OPENSHIFT_TOKEN")
+    prom_client = PrometheusClient(openshift_url, token)
 
     metrics_dict = {}
     metrics_dict["start_date"] = report_start_date
     metrics_dict["end_date"] = report_end_date
 
-    cpu_request_metrics = utils.query_metric(
-        openshift_url, token, CPU_REQUEST, report_start_date, report_end_date
+    cpu_request_metrics = prom_client.query_metric(
+        CPU_REQUEST, report_start_date, report_end_date
     )
-    memory_request_metrics = utils.query_metric(
-        openshift_url, token, MEMORY_REQUEST, report_start_date, report_end_date
+    memory_request_metrics = prom_client.query_metric(
+        MEMORY_REQUEST, report_start_date, report_end_date
     )
     metrics_dict["cpu_metrics"] = cpu_request_metrics
     metrics_dict["memory_metrics"] = memory_request_metrics
 
     # because if nobody requests a GPU then we will get an empty set
     try:
-        gpu_request_metrics = utils.query_metric(
-            openshift_url, token, GPU_REQUEST, report_start_date, report_end_date
+        gpu_request_metrics = prom_client.query_metric(
+            GPU_REQUEST, report_start_date, report_end_date
         )
         metrics_dict["gpu_metrics"] = gpu_request_metrics
     except utils.EmptyResultError:
