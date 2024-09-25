@@ -207,123 +207,6 @@ def get_service_unit(cpu_count, memory_count, gpu_count, gpu_type, gpu_resource)
     return su_type, su_count, determining_resource
 
 
-def merge_metrics(metric_name, metric_list, output_dict):
-    """
-    Merge metrics by pod but since pod names aren't guaranteed to be unique across
-    namespaces, we combine the namespace and podname together when generating the
-    output dictionary so it contains all pods.
-    """
-
-    for metric in metric_list:
-        pod = metric["metric"]["pod"]
-        namespace = metric["metric"]["namespace"]
-        node = metric["metric"].get("node")
-
-        gpu_type = None
-        gpu_resource = None
-        node_model = None
-
-        unique_name = namespace + "+" + pod
-        if unique_name not in output_dict:
-            output_dict[unique_name] = {"namespace": namespace, "metrics": {}}
-
-        if metric_name == "gpu_request":
-            gpu_type = metric["metric"].get("label_nvidia_com_gpu_product", GPU_UNKNOWN_TYPE)
-            gpu_resource = metric["metric"].get("resource")
-            node_model = metric["metric"].get("label_nvidia_com_gpu_machine")
-
-        for value in metric["values"]:
-            epoch_time = value[0]
-            if epoch_time not in output_dict[unique_name]["metrics"]:
-                output_dict[unique_name]["metrics"][epoch_time] = {}
-            output_dict[unique_name]["metrics"][epoch_time][metric_name] = value[1]
-            if gpu_type:
-                output_dict[unique_name]["metrics"][epoch_time]['gpu_type'] = gpu_type
-            if gpu_resource:
-                output_dict[unique_name]["metrics"][epoch_time]['gpu_resource'] = gpu_resource
-            if node_model:
-                output_dict[unique_name]["metrics"][epoch_time]['node_model'] = node_model
-            if node:
-                output_dict[unique_name]["metrics"][epoch_time]['node'] = node
-
-    return output_dict
-
-
-def condense_metrics(input_metrics_dict, metrics_to_check):
-    """
-    Checks if the value of metrics is the same, and removes redundant
-    metrics while updating the duration. If there's a gap in the reported
-    metrics then don't count that as part of duration.
-
-    Here's a sample input dictionary in which I have separated missing metrics
-    or different metrics by empty lines.
-
-    {'naved-test+test-pod': {'gpu_type': 'No GPU',
-                         'metrics': {1711741500: {'cpu_request': '1',
-                                                  'memory_request': '3221225472'},
-                                     1711742400: {'cpu_request': '1',
-                                                  'memory_request': '3221225472'},
-                                     1711743300: {'cpu_request': '1',
-                                                  'memory_request': '3221225472'},
-                                     1711744200: {'cpu_request': '1',
-                                                  'memory_request': '3221225472'},
-
-                                     1711746000: {'cpu_request': '1',
-                                                  'memory_request': '3221225472'},
-
-                                     1711746900: {'cpu_request': '1',
-                                                  'memory_request': '4294967296'},
-                                     1711747800: {'cpu_request': '1',
-                                                  'memory_request': '4294967296'},
-                                     1711748700: {'cpu_request': '1',
-                                                  'memory_request': '4294967296'},
-
-                                     1711765800: {'cpu_request': '1',
-                                                  'memory_request': '4294967296'}},
-                         'namespace': 'naved-test'}}
-    """
-    interval = STEP_MIN * 60
-    condensed_dict = {}
-    for pod, pod_dict in input_metrics_dict.items():
-        metrics_dict = pod_dict["metrics"]
-        new_metrics_dict = {}
-        epoch_times_list = sorted(metrics_dict.keys())
-
-        start_epoch_time = epoch_times_list[0]
-
-        start_metric_dict = metrics_dict[start_epoch_time].copy()
-
-        for i in range(len(epoch_times_list)):
-            epoch_time = epoch_times_list[i]
-            same_metrics = True
-            continuous_metrics = True
-            for metric in metrics_to_check:
-                if metrics_dict[start_epoch_time].get(metric, 0) != metrics_dict[epoch_time].get(metric, 0):  # fmt: skip
-                    same_metrics = False
-
-            if i !=0 and epoch_time - epoch_times_list[i-1]> interval:
-                # i.e. if the difference between 2 consecutive timestamps
-                # is more than the expected frequency then the pod was stopped
-                continuous_metrics = False
-
-            if not same_metrics or not continuous_metrics:
-                duration = epoch_times_list[i-1] - start_epoch_time + interval
-                start_metric_dict["duration"] = duration
-                new_metrics_dict[start_epoch_time] = start_metric_dict
-                start_epoch_time = epoch_time
-                start_metric_dict = metrics_dict[start_epoch_time].copy()
-
-        duration = epoch_time - start_epoch_time + interval
-        start_metric_dict["duration"] = duration
-        new_metrics_dict[start_epoch_time] = start_metric_dict
-
-        new_pod_dict = pod_dict.copy()
-        new_pod_dict["metrics"] = new_metrics_dict
-        condensed_dict[pod] = new_pod_dict
-
-    return condensed_dict
-
-
 def csv_writer(rows, file_name):
     """Writes rows as csv to file_name"""
     print(f"Writing csv to {file_name}")
@@ -376,11 +259,9 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month):
 
     rows.append(headers)
 
-    for pod, pod_dict in condensed_metrics_dict.items():
-        namespace = pod_dict["namespace"]
-        pod_metrics_dict = pod_dict["metrics"]
-        namespace_annotation_dict = namespace_annotations.get(namespace, {})
+    for namespace, pods in condensed_metrics_dict.items():
 
+        namespace_annotation_dict = namespace_annotations.get(namespace, {})
         cf_pi = namespace_annotation_dict.get("cf_pi")
         cf_institution_code = namespace_annotation_dict.get("institution_code")
 
@@ -398,26 +279,30 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month):
                 "total_cost": 0,
             }
 
-        for epoch_time, pod_metric_dict in pod_metrics_dict.items():
-            duration_in_hours = Decimal(pod_metric_dict["duration"]) / 3600
-            cpu_request = Decimal(pod_metric_dict.get("cpu_request", 0))
-            gpu_request = Decimal(pod_metric_dict.get("gpu_request", 0))
-            gpu_type = pod_metric_dict.get("gpu_type")
-            gpu_resource = pod_metric_dict.get("gpu_resource")
-            memory_request = Decimal(pod_metric_dict.get("memory_request", 0)) / 2**30
+        for pod, pod_dict in pods.items():
 
-            _, su_count, _ = get_service_unit(cpu_request, memory_request, gpu_request, gpu_type, gpu_resource)
+            pod_metrics_dict = pod_dict["metrics"]
 
-            if gpu_type == GPU_A100:
-                metrics_by_namespace[namespace]["SU_A100_GPU_HOURS"] += su_count * duration_in_hours
-            elif gpu_type == GPU_A100_SXM4:
-                metrics_by_namespace[namespace]["SU_A100_SXM4_GPU_HOURS"] += su_count * duration_in_hours
-            elif gpu_type == GPU_V100:
-                metrics_by_namespace[namespace]["SU_V100_GPU_HOURS"] += su_count * duration_in_hours
-            elif gpu_type == GPU_UNKNOWN_TYPE:
-                metrics_by_namespace[namespace]["SU_UNKNOWN_GPU_HOURS"] += su_count * duration_in_hours
-            else:
-                metrics_by_namespace[namespace]["SU_CPU_HOURS"] += su_count * duration_in_hours
+            for epoch_time, pod_metric_dict in pod_metrics_dict.items():
+                duration_in_hours = Decimal(pod_metric_dict["duration"]) / 3600
+                cpu_request = Decimal(pod_metric_dict.get("cpu_request", 0))
+                gpu_request = Decimal(pod_metric_dict.get("gpu_request", 0))
+                gpu_type = pod_metric_dict.get("gpu_type")
+                gpu_resource = pod_metric_dict.get("gpu_resource")
+                memory_request = Decimal(pod_metric_dict.get("memory_request", 0)) / 2**30
+
+                _, su_count, _ = get_service_unit(cpu_request, memory_request, gpu_request, gpu_type, gpu_resource)
+
+                if gpu_type == GPU_A100:
+                    metrics_by_namespace[namespace]["SU_A100_GPU_HOURS"] += su_count * duration_in_hours
+                elif gpu_type == GPU_A100_SXM4:
+                    metrics_by_namespace[namespace]["SU_A100_SXM4_GPU_HOURS"] += su_count * duration_in_hours
+                elif gpu_type == GPU_V100:
+                    metrics_by_namespace[namespace]["SU_V100_GPU_HOURS"] += su_count * duration_in_hours
+                elif gpu_type == GPU_UNKNOWN_TYPE:
+                    metrics_by_namespace[namespace]["SU_UNKNOWN_GPU_HOURS"] += su_count * duration_in_hours
+                else:
+                    metrics_by_namespace[namespace]["SU_CPU_HOURS"] += su_count * duration_in_hours
 
     for namespace, metrics in metrics_by_namespace.items():
 
@@ -477,52 +362,52 @@ def write_metrics_by_pod(metrics_dict, file_name):
     ]
     rows.append(headers)
 
-    for pod, pod_dict in metrics_dict.items():
-        namespace = pod_dict["namespace"]
-        pod_metrics_dict = pod_dict["metrics"]
-        namespace_annotation_dict = namespace_annotations.get(namespace, {})
-        cf_pi = namespace_annotation_dict.get("cf_pi")
-        cf_project_id = namespace_annotation_dict.get("cf_project_id")
+    for namespace, pods in metrics_dict.items():
+        for pod, pod_dict in pods.items():
+            pod_metrics_dict = pod_dict["metrics"]
+            namespace_annotation_dict = namespace_annotations.get(namespace, {})
+            cf_pi = namespace_annotation_dict.get("cf_pi")
+            cf_project_id = namespace_annotation_dict.get("cf_project_id")
 
-        for epoch_time, pod_metric_dict in pod_metrics_dict.items():
-            start_time = datetime.datetime.utcfromtimestamp(float(epoch_time)).strftime(
-                "%Y-%m-%dT%H:%M:%S"
-            )
-            end_time = datetime.datetime.utcfromtimestamp(
-                float(epoch_time + pod_metric_dict["duration"])
-            ).strftime("%Y-%m-%dT%H:%M:%S")
-            duration = (Decimal(pod_metric_dict["duration"]) / 3600).quantize(Decimal(".0001"), rounding=decimal.ROUND_HALF_UP)
-            cpu_request = Decimal(pod_metric_dict.get("cpu_request", 0))
-            gpu_request = Decimal(pod_metric_dict.get("gpu_request", 0))
-            gpu_type = pod_metric_dict.get("gpu_type")
-            gpu_resource = pod_metric_dict.get("gpu_resource")
-            node = pod_metric_dict.get("node", "Unknown Node")
-            node_model = pod_metric_dict.get("node_model", "Unknown Model")
-            memory_request = (Decimal(pod_metric_dict.get("memory_request", 0)) / 2**30).quantize(Decimal(".0001"), rounding=decimal.ROUND_HALF_UP)
-            su_type, su_count, determining_resource = get_service_unit(
-                cpu_request, memory_request, gpu_request, gpu_type, gpu_resource
-            )
+            for epoch_time, pod_metric_dict in pod_metrics_dict.items():
+                start_time = datetime.datetime.utcfromtimestamp(float(epoch_time)).strftime(
+                    "%Y-%m-%dT%H:%M:%S"
+                )
+                end_time = datetime.datetime.utcfromtimestamp(
+                    float(epoch_time + pod_metric_dict["duration"])
+                ).strftime("%Y-%m-%dT%H:%M:%S")
+                duration = (Decimal(pod_metric_dict["duration"]) / 3600).quantize(Decimal(".0001"), rounding=decimal.ROUND_HALF_UP)
+                cpu_request = Decimal(pod_metric_dict.get("cpu_request", 0))
+                gpu_request = Decimal(pod_metric_dict.get("gpu_request", 0))
+                gpu_type = pod_metric_dict.get("gpu_type")
+                gpu_resource = pod_metric_dict.get("gpu_resource")
+                node = pod_metric_dict.get("node", "Unknown Node")
+                node_model = pod_metric_dict.get("node_model", "Unknown Model")
+                memory_request = (Decimal(pod_metric_dict.get("memory_request", 0)) / 2**30).quantize(Decimal(".0001"), rounding=decimal.ROUND_HALF_UP)
+                su_type, su_count, determining_resource = get_service_unit(
+                    cpu_request, memory_request, gpu_request, gpu_type, gpu_resource
+                )
 
-            info_list = [
-                namespace,
-                cf_pi,
-                cf_project_id,
-                start_time,
-                end_time,
-                duration,
-                pod,
-                cpu_request,
-                gpu_request,
-                gpu_type,
-                gpu_resource,
-                node,
-                node_model,
-                memory_request,
-                determining_resource,
-                su_type,
-                su_count,
-            ]
+                info_list = [
+                    namespace,
+                    cf_pi,
+                    cf_project_id,
+                    start_time,
+                    end_time,
+                    duration,
+                    pod,
+                    cpu_request,
+                    gpu_request,
+                    gpu_type,
+                    gpu_resource,
+                    node,
+                    node_model,
+                    memory_request,
+                    determining_resource,
+                    su_type,
+                    su_count,
+                ]
 
-            rows.append(info_list)
+                rows.append(info_list)
 
     csv_writer(rows, file_name)

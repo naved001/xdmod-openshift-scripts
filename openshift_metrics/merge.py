@@ -8,6 +8,7 @@ import json
 
 import utils
 
+from metrics_processor import MetricsProcessor
 
 def compare_dates(date_str1, date_str2):
     """Returns true is date1 is earlier than date2"""
@@ -33,9 +34,10 @@ def main():
     else:
         output_file = f"{datetime.today().strftime('%Y-%m-%d')}.csv"
 
-    merged_dictionary = {}
     report_start_date = None
     report_end_date = None
+
+    processor = MetricsProcessor()
 
     for file in files:
         with open(file, "r") as jsonfile:
@@ -43,10 +45,10 @@ def main():
             cpu_request_metrics = metrics_from_file["cpu_metrics"]
             memory_request_metrics = metrics_from_file["memory_metrics"]
             gpu_request_metrics = metrics_from_file.get("gpu_metrics", None)
-            utils.merge_metrics("cpu_request", cpu_request_metrics, merged_dictionary)
-            utils.merge_metrics("memory_request", memory_request_metrics, merged_dictionary)
+            processor.merge_metrics("cpu_request", cpu_request_metrics)
+            processor.merge_metrics("memory_request", memory_request_metrics)
             if gpu_request_metrics is not None:
-                utils.merge_metrics("gpu_request", gpu_request_metrics, merged_dictionary)
+                processor.merge_metrics("gpu_request", gpu_request_metrics)
 
             if report_start_date is None:
                 report_start_date = metrics_from_file["start_date"]
@@ -69,8 +71,8 @@ def main():
         print("Warning: The report spans multiple months")
         report_month += " to " + datetime.strftime(report_end_date, "%Y-%m")
 
-    condensed_metrics_dict = utils.condense_metrics(
-        merged_dictionary, ["cpu_request", "memory_request", "gpu_request", "gpu_type"]
+    condensed_metrics_dict = processor.condense_metrics(
+        ["cpu_request", "memory_request", "gpu_request", "gpu_type"]
     )
     utils.write_metrics_by_namespace(
         condensed_metrics_dict,
