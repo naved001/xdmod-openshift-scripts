@@ -18,19 +18,12 @@ class MetricsProcessor:
             namespace = metric["metric"]["namespace"]
             node = metric["metric"].get("node")
 
-            gpu_type = None
-            gpu_resource = None
-            node_model = None
-
             self.merged_data.setdefault(namespace, {})
             self.merged_data[namespace].setdefault(pod, {"metrics": {}})
 
-            if metric_name == "gpu_request":
-                gpu_type = metric["metric"].get(
-                    "label_nvidia_com_gpu_product", GPU_UNKNOWN_TYPE
-                )
-                gpu_resource = metric["metric"].get("resource")
-                node_model = metric["metric"].get("label_nvidia_com_gpu_machine")
+            gpu_type, gpu_resource, node_model = self._extract_gpu_info(
+                metric_name, metric
+            )
 
             for value in metric["values"]:
                 epoch_time = value[0]
@@ -56,6 +49,22 @@ class MetricsProcessor:
                     self.merged_data[namespace][pod]["metrics"][epoch_time][
                         "node"
                     ] = node
+
+    @staticmethod
+    def _extract_gpu_info(metric_name: str, metric: Dict) -> tuple:
+        """Extract GPU related info"""
+        gpu_type = None
+        gpu_resource = None
+        node_model = None
+
+        if metric_name == "gpu_request":
+            gpu_type = metric["metric"].get(
+                "label_nvidia_com_gpu_product", GPU_UNKNOWN_TYPE
+            )
+            gpu_resource = metric["metric"].get("resource")
+            node_model = metric["metric"].get("label_nvidia_com_gpu_machine")
+
+        return gpu_type, gpu_resource, node_model
 
     def condense_metrics(self, metrics_to_check: List[str]) -> Dict:
         """
