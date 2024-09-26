@@ -25,14 +25,13 @@ class MetricsProcessor:
                 metric_name, metric
             )
 
-            for value in metric["values"]:
-                epoch_time = value[0]
+            for epoch_time, metric_value in metric["values"]:
 
                 self.merged_data[namespace][pod]["metrics"].setdefault(epoch_time, {})
 
                 self.merged_data[namespace][pod]["metrics"][epoch_time][
                     metric_name
-                ] = value[1]
+                ] = metric_value
                 if gpu_type:
                     self.merged_data[namespace][pod]["metrics"][epoch_time][
                         "gpu_type"
