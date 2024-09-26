@@ -1,6 +1,8 @@
 from typing import List, Dict
+from collections import namedtuple
 
 GPU_UNKNOWN_TYPE = "GPU_UNKNOWN_TYPE"
+GPUInfo = namedtuple("GPUInfo", ["gpu_type", "gpu_resource", "node_model"])
 
 
 class MetricsProcessor:
@@ -50,7 +52,7 @@ class MetricsProcessor:
                     ] = node
 
     @staticmethod
-    def _extract_gpu_info(metric_name: str, metric: Dict) -> tuple:
+    def _extract_gpu_info(metric_name: str, metric: Dict) -> GPUInfo:
         """Extract GPU related info"""
         gpu_type = None
         gpu_resource = None
@@ -63,7 +65,7 @@ class MetricsProcessor:
             gpu_resource = metric["metric"].get("resource")
             node_model = metric["metric"].get("label_nvidia_com_gpu_machine")
 
-        return gpu_type, gpu_resource, node_model
+        return GPUInfo(gpu_type, gpu_resource, node_model)
 
     def condense_metrics(self, metrics_to_check: List[str]) -> Dict:
         """
