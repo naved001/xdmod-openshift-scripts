@@ -21,6 +21,7 @@ import csv
 import requests
 import boto3
 
+from openshift_metrics import invoice
 from decimal import Decimal
 import decimal
 from urllib3.util.retry import Retry
@@ -140,73 +141,6 @@ def get_namespace_attributes():
     return namespaces_dict
 
 
-def get_service_unit(cpu_count, memory_count, gpu_count, gpu_type, gpu_resource):
-    """
-    Returns the type of service unit, the count, and the determining resource
-    """
-    su_type = SU_UNKNOWN
-    su_count = 0
-
-    # pods that requested a specific GPU but weren't scheduled may report 0 GPU
-    if gpu_resource is not None and gpu_count == 0:
-        return SU_UNKNOWN_GPU, 0, "GPU"
-
-    # pods in weird states
-    if cpu_count == 0 or memory_count == 0:
-        return SU_UNKNOWN, 0, "CPU"
-
-    known_gpu_su = {
-        GPU_A100: SU_A100_GPU,
-        GPU_A100_SXM4: SU_A100_SXM4_GPU,
-        GPU_V100: SU_V100_GPU,
-    }
-
-    A100_SXM4_MIG = {
-        MIG_1G_5GB: SU_UNKNOWN_MIG_GPU,
-        MIG_2G_10GB: SU_UNKNOWN_MIG_GPU,
-        MIG_3G_20GB: SU_UNKNOWN_MIG_GPU,
-    }
-
-    # GPU count for some configs is -1 for math reasons, in reality it is 0
-    su_config = {
-        SU_CPU: {"gpu": -1, "cpu": 1, "ram": 4},
-        SU_A100_GPU: {"gpu": 1, "cpu": 24, "ram": 74},
-        SU_A100_SXM4_GPU: {"gpu": 1, "cpu": 32, "ram": 245},
-        SU_V100_GPU: {"gpu": 1, "cpu": 24, "ram": 192},
-        SU_UNKNOWN_GPU: {"gpu": 1, "cpu": 8, "ram": 64},
-        SU_UNKNOWN_MIG_GPU: {"gpu": 1, "cpu": 8, "ram": 64},
-        SU_UNKNOWN: {"gpu": -1, "cpu": 1, "ram": 1},
-    }
-
-    if gpu_resource is None and gpu_count == 0:
-        su_type = SU_CPU
-    elif gpu_type is not None and gpu_resource == WHOLE_GPU:
-        su_type = known_gpu_su.get(gpu_type, SU_UNKNOWN_GPU)
-    elif gpu_type == GPU_A100_SXM4: # for MIG GPU of type A100_SXM4
-        su_type = A100_SXM4_MIG.get(gpu_resource, SU_UNKNOWN_MIG_GPU)
-    else:
-        return SU_UNKNOWN_GPU, 0, "GPU"
-
-    cpu_multiplier = cpu_count / su_config[su_type]["cpu"]
-    gpu_multiplier = gpu_count / su_config[su_type]["gpu"]
-    memory_multiplier = memory_count / su_config[su_type]["ram"]
-
-    su_count = max(cpu_multiplier, gpu_multiplier, memory_multiplier)
-
-    # no fractional SUs for GPU SUs
-    if su_type != SU_CPU:
-        su_count = math.ceil(su_count)
-
-    if gpu_multiplier >= cpu_multiplier and gpu_multiplier >= memory_multiplier:
-        determining_resource = "GPU"
-    elif cpu_multiplier >= gpu_multiplier and cpu_multiplier >= memory_multiplier:
-        determining_resource = "CPU"
-    else:
-        determining_resource = "RAM"
-
-    return su_type, su_count, determining_resource
-
-
 def csv_writer(rows, file_name):
     """Writes rows as csv to file_name"""
     print(f"Writing csv to {file_name}")
@@ -215,31 +149,11 @@ def csv_writer(rows, file_name):
         csvwriter.writerows(rows)
 
 
-def add_row(rows, report_month, namespace, pi, institution_code, hours, su_type):
-
-    hours = math.ceil(hours)
-    cost = (RATE.get(su_type) * hours).quantize(Decimal('.01'), rounding=decimal.ROUND_HALF_UP)
-    row = [
-        report_month,
-        namespace,
-        namespace,
-        pi,
-        "", #Invoice Email
-        "", #Invoice Address
-        "", #Institution
-        institution_code,
-        hours,
-        su_type,
-        RATE.get(su_type),
-        cost,
-    ]
-    rows.append(row)
-
 def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month):
     """
     Process metrics dictionary to aggregate usage by namespace and then write that to a file
     """
-    metrics_by_namespace = {}
+    invoices = {}
     rows = []
     namespace_annotations = get_namespace_attributes()
     headers = [
@@ -259,75 +173,54 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month):
 
     rows.append(headers)
 
-    for namespace, pods in condensed_metrics_dict.items():
+    # TODO: the caller will pass in the rates as an argument
+    rates = invoice.Rates(
+        cpu = Decimal("0.013"),
+        gpu_a100 = Decimal("1.803"),
+        gpu_a100sxm4 = Decimal("2.078"),
+        gpu_v100 = Decimal("1.214")
+    )
 
+    for namespace, pods in condensed_metrics_dict.items():
         namespace_annotation_dict = namespace_annotations.get(namespace, {})
         cf_pi = namespace_annotation_dict.get("cf_pi")
-        cf_institution_code = namespace_annotation_dict.get("institution_code")
+        cf_institution_code = namespace_annotation_dict.get("institution_code", "")
 
-        if namespace not in metrics_by_namespace:
-            metrics_by_namespace[namespace] = {
-                "pi": cf_pi,
-                "cf_institution_code": cf_institution_code,
-                "_cpu_hours": 0,
-                "_memory_hours": 0,
-                "SU_CPU_HOURS": 0,
-                "SU_A100_GPU_HOURS": 0,
-                "SU_A100_SXM4_GPU_HOURS": 0,
-                "SU_V100_GPU_HOURS": 0,
-                "SU_UNKNOWN_GPU_HOURS": 0,
-                "total_cost": 0,
-            }
+        if namespace not in invoices:
+            project_invoice = invoice.ProjectInvoce(
+                invoice_month=report_month,
+                project=namespace,
+                project_id=namespace,
+                pi=cf_pi,
+                invoice_email="",
+                invoice_address="",
+                intitution="",
+                institution_specific_code=cf_institution_code,
+                rates=rates
+            )
+            invoices[namespace] = project_invoice
+
+        project_invoice = invoices[namespace]
 
         for pod, pod_dict in pods.items():
+            for epoch_time, pod_metric_dict in pod_dict["metrics"].items():
+                pod_obj = invoice.Pod(
+                    pod_name=pod,
+                    namespace=namespace,
+                    start_time=epoch_time,
+                    duration=pod_metric_dict["duration"],
+                    cpu_request=Decimal(pod_metric_dict.get("cpu_request", 0)),
+                    gpu_request=Decimal(pod_metric_dict.get("gpu_request", 0)),
+                    memory_request=Decimal(pod_metric_dict.get("memory_request", 0)) / 2**30,
+                    gpu_type=pod_metric_dict.get("gpu_type"),
+                    gpu_resource=pod_metric_dict.get("gpu_resource"),
+                    node_hostname=pod_metric_dict.get("node"),
+                    node_model=pod_metric_dict.get("node_model"),
+                )
+                project_invoice.add_pod(pod_obj)
 
-            pod_metrics_dict = pod_dict["metrics"]
-
-            for epoch_time, pod_metric_dict in pod_metrics_dict.items():
-                duration_in_hours = Decimal(pod_metric_dict["duration"]) / 3600
-                cpu_request = Decimal(pod_metric_dict.get("cpu_request", 0))
-                gpu_request = Decimal(pod_metric_dict.get("gpu_request", 0))
-                gpu_type = pod_metric_dict.get("gpu_type")
-                gpu_resource = pod_metric_dict.get("gpu_resource")
-                memory_request = Decimal(pod_metric_dict.get("memory_request", 0)) / 2**30
-
-                _, su_count, _ = get_service_unit(cpu_request, memory_request, gpu_request, gpu_type, gpu_resource)
-
-                if gpu_type == GPU_A100:
-                    metrics_by_namespace[namespace]["SU_A100_GPU_HOURS"] += su_count * duration_in_hours
-                elif gpu_type == GPU_A100_SXM4:
-                    metrics_by_namespace[namespace]["SU_A100_SXM4_GPU_HOURS"] += su_count * duration_in_hours
-                elif gpu_type == GPU_V100:
-                    metrics_by_namespace[namespace]["SU_V100_GPU_HOURS"] += su_count * duration_in_hours
-                elif gpu_type == GPU_UNKNOWN_TYPE:
-                    metrics_by_namespace[namespace]["SU_UNKNOWN_GPU_HOURS"] += su_count * duration_in_hours
-                else:
-                    metrics_by_namespace[namespace]["SU_CPU_HOURS"] += su_count * duration_in_hours
-
-    for namespace, metrics in metrics_by_namespace.items():
-
-        common_args = {
-            "rows": rows,
-            "report_month": report_month,
-            "namespace": namespace,
-            "pi": metrics["pi"],
-            "institution_code": metrics["cf_institution_code"]
-        }
-
-        if metrics["SU_CPU_HOURS"] != 0:
-            add_row(hours=metrics["SU_CPU_HOURS"], su_type=SU_CPU, **common_args)
-
-        if metrics["SU_A100_GPU_HOURS"] != 0:
-            add_row(hours=metrics["SU_A100_GPU_HOURS"], su_type=SU_A100_GPU, **common_args)
-
-        if metrics["SU_A100_SXM4_GPU_HOURS"] != 0:
-            add_row(hours=metrics["SU_A100_SXM4_GPU_HOURS"], su_type=SU_A100_SXM4_GPU, **common_args)
-
-        if metrics["SU_V100_GPU_HOURS"] != 0:
-            add_row(hours=metrics["SU_V100_GPU_HOURS"], su_type=SU_V100_GPU, **common_args)
-
-        if metrics["SU_UNKNOWN_GPU_HOURS"] != 0:
-            add_row(hours=metrics["SU_UNKNOWN_GPU_HOURS"], su_type=SU_UNKNOWN_GPU, **common_args)
+    for project_invoice in invoices.values():
+        rows.extend(project_invoice.generate_invoice_rows(report_month))
 
     csv_writer(rows, file_name)
 
@@ -384,7 +277,7 @@ def write_metrics_by_pod(metrics_dict, file_name):
                 node = pod_metric_dict.get("node", "Unknown Node")
                 node_model = pod_metric_dict.get("node_model", "Unknown Model")
                 memory_request = (Decimal(pod_metric_dict.get("memory_request", 0)) / 2**30).quantize(Decimal(".0001"), rounding=decimal.ROUND_HALF_UP)
-                su_type, su_count, determining_resource = get_service_unit(
+                su_type, su_count, determining_resource = invoice.Pod.get_service_unit(
                     cpu_request, memory_request, gpu_request, gpu_type, gpu_resource
                 )
 
