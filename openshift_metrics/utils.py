@@ -14,51 +14,12 @@
 """Holds bunch of utility functions"""
 
 import os
-import datetime
-import time
-import math
 import csv
 import requests
 import boto3
 
 from openshift_metrics import invoice
 from decimal import Decimal
-import decimal
-from urllib3.util.retry import Retry
-from requests.adapters import HTTPAdapter
-
-# GPU types
-GPU_A100 = "NVIDIA-A100-40GB"
-GPU_A100_SXM4 = "NVIDIA-A100-SXM4-40GB"
-GPU_V100 = "Tesla-V100-PCIE-32GB"
-GPU_UNKNOWN_TYPE = "GPU_UNKNOWN_TYPE"
-
-# GPU Resource - MIG Geometries
-# A100 Strategies
-MIG_1G_5GB = "nvidia.com/mig-1g.5gb"
-MIG_2G_10GB = "nvidia.com/mig-2g.10gb"
-MIG_3G_20GB = "nvidia.com/mig-3g.20gb"
-WHOLE_GPU = "nvidia.com/gpu"
-
-
-# SU Types
-SU_CPU = "OpenShift CPU"
-SU_A100_GPU = "OpenShift GPUA100"
-SU_A100_SXM4_GPU = "OpenShift GPUA100SXM4"
-SU_V100_GPU = "OpenShift GPUV100"
-SU_UNKNOWN_GPU = "OpenShift Unknown GPU"
-SU_UNKNOWN_MIG_GPU = "OpenShift Unknown MIG GPU"
-SU_UNKNOWN = "Openshift Unknown"
-
-RATE = {
-    SU_CPU: Decimal("0.013"),
-    SU_A100_GPU: Decimal("1.803"),
-    SU_A100_SXM4_GPU: Decimal("2.078"),
-    SU_V100_GPU: Decimal("1.214"),
-    SU_UNKNOWN_GPU: Decimal("0"),
-}
-
-STEP_MIN = 15
 
 
 class EmptyResultError(Exception):
