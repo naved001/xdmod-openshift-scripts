@@ -1,6 +1,10 @@
 import json
 from typing import List, Dict
 from collections import namedtuple
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 GPU_UNKNOWN_TYPE = "GPU_UNKNOWN_TYPE"
 GPUInfo = namedtuple("GPUInfo", ["gpu_type", "gpu_resource", "node_model"])
@@ -85,6 +89,7 @@ class MetricsProcessor:
             with open(file_path, "r") as file:
                 return json.load(file)
         except FileNotFoundError:
+            logger.warning("Could not load gpu-node map file: %s", file_path)
             return {}
 
     def condense_metrics(self, metrics_to_check: List[str]) -> Dict:
