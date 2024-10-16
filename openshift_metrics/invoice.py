@@ -1,7 +1,7 @@
 import math
 from dataclasses import dataclass, field
 from collections import namedtuple
-from typing import List
+from typing import List, Tuple
 from decimal import Decimal, ROUND_HALF_UP
 import datetime
 
@@ -112,9 +112,27 @@ class Pod:
 
         return ServiceUnit(su_type, su_count, determining_resource)
 
-    def get_runtime(self) -> Decimal:
+    def get_runtime(
+        self, ignore_times: List[Tuple[datetime.datetime, datetime.datetime]] = None
+    ) -> Decimal:
         """Return runtime eligible for billing in hours"""
-        return Decimal(self.duration) / 3600
+
+        total_runtime = self.duration
+        end_time = self.start_time + self.duration
+
+        if ignore_times:
+            for ignore_start_date, ignore_end_date in ignore_times:
+                ignore_start = int(ignore_start_date.timestamp())
+                ignore_end = int(ignore_end_date.timestamp())
+                if ignore_end <= self.start_time or ignore_start >= end_time:
+                    continue
+                overlap_start = max(self.start_time, ignore_start)
+                overlap_end = min(end_time, ignore_end)
+
+                overlap_duration = max(0, overlap_end - overlap_start)
+                total_runtime = max(0, total_runtime - overlap_duration)
+
+        return Decimal(total_runtime) / 3600
 
     @property
     def end_time(self) -> int:
