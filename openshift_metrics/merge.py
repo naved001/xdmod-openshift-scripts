@@ -5,6 +5,7 @@ Merges metrics from files and produces reports by pod and by namespace
 import argparse
 from datetime import datetime
 import json
+from typing import Tuple
 
 from openshift_metrics import utils
 from openshift_metrics.metrics_processor import MetricsProcessor
@@ -16,6 +17,19 @@ def compare_dates(date_str1, date_str2):
     return date1 < date2
 
 
+def parse_timestamp_range(timestamp_range: str) -> Tuple[datetime, datetime]:
+    try:
+        start_str, end_str = timestamp_range.split(",")
+        start_dt = datetime.fromisoformat(start_str)
+        end_dt = datetime.fromisoformat(end_str)
+        if start_dt < end_dt:
+            raise argparse.ArgumentTypeError("Ignore start time is after ignore end time")
+        return start_dt, end_dt
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            "Timestamp range must be in the format 'YYYY-MM-DDTHH:MM:SS,YYYY-MM-DDTHH:MM:SS'"
+        )
+
 def main():
     """Reads the metrics from files and generates the reports"""
     parser = argparse.ArgumentParser()
@@ -25,6 +39,13 @@ def main():
         "--upload-to-s3",
         action="store_true"
     )
+    parser.add_argument(
+        "--ignore-hours",
+        type=parse_timestamp_range,
+        nargs="*",
+        help="List of timestamp ranges to ignore in the format 'YYYY-MM-DDTHH:MM:SS,YYYY-MM-DDTHH:MM:SS'"
+    )
+
     args = parser.parse_args()
     files = args.files
 
@@ -32,6 +53,7 @@ def main():
         output_file = args.output_file
     else:
         output_file = f"{datetime.today().strftime('%Y-%m-%d')}.csv"
+    ignore_hours = args.ignore_hours
 
     report_start_date = None
     report_end_date = None
@@ -76,9 +98,10 @@ def main():
     utils.write_metrics_by_namespace(
         condensed_metrics_dict,
         output_file,
-        report_month
+        report_month,
+        ignore_hours,
     )
-    utils.write_metrics_by_pod(condensed_metrics_dict, "pod-" + output_file)
+    utils.write_metrics_by_pod(condensed_metrics_dict, "pod-" + output_file, ignore_hours)
 
     if args.upload_to_s3:
         primary_location = (

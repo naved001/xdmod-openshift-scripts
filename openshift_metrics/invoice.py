@@ -1,7 +1,7 @@
 import math
 from dataclasses import dataclass, field
 from collections import namedtuple
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 from decimal import Decimal, ROUND_HALF_UP
 import datetime
 
@@ -138,7 +138,7 @@ class Pod:
     def end_time(self) -> int:
         return self.start_time + self.duration
 
-    def generate_pod_row(self):
+    def generate_pod_row(self, ignore_times):
         """
         This returns a row to represent pod data.
         It converts the epoch_time stamps to datetime timestamps so it's more readable.
@@ -154,7 +154,7 @@ class Pod:
         memory_request = self.memory_request.quantize(
             Decimal(".0001"), rounding=ROUND_HALF_UP
         )
-        runtime = self.get_runtime().quantize(Decimal(".0001"), rounding=ROUND_HALF_UP)
+        runtime = self.get_runtime(ignore_times).quantize(Decimal(".0001"), rounding=ROUND_HALF_UP)
         return [
             self.namespace,
             start_time,
@@ -195,6 +195,7 @@ class ProjectInvoce:
     intitution: str
     institution_specific_code: str
     rates: Rates
+    ignore_hours: Optional[List[Tuple[datetime.datetime, datetime.datetime]]] = None
     su_hours: dict = field(
         default_factory=lambda: {
             SU_CPU: 0,
@@ -210,7 +211,7 @@ class ProjectInvoce:
     def add_pod(self, pod: Pod) -> None:
         """Aggregate a pods data"""
         su_type, su_count, _ = pod.get_service_unit()
-        duration_in_hours = pod.get_runtime()
+        duration_in_hours = pod.get_runtime(self.ignore_hours)
         self.su_hours[su_type] += su_count * duration_in_hours
 
     def get_rate(self, su_type) -> Decimal:

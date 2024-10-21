@@ -110,7 +110,7 @@ def csv_writer(rows, file_name):
         csvwriter.writerows(rows)
 
 
-def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month):
+def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month, ignore_hours=None):
     """
     Process metrics dictionary to aggregate usage by namespace and then write that to a file
     """
@@ -157,7 +157,8 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month):
                 invoice_address="",
                 intitution="",
                 institution_specific_code=cf_institution_code,
-                rates=rates
+                rates=rates,
+                ignore_hours=ignore_hours,
             )
             invoices[namespace] = project_invoice
 
@@ -186,7 +187,7 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month):
     csv_writer(rows, file_name)
 
 
-def write_metrics_by_pod(condensed_metrics_dict, file_name):
+def write_metrics_by_pod(condensed_metrics_dict, file_name, ignore_hours=None):
     """
     Generates metrics report by pod.
     """
@@ -227,6 +228,6 @@ def write_metrics_by_pod(condensed_metrics_dict, file_name):
                     node_hostname=pod_metric_dict.get("node", "Unknown Node"),
                     node_model=pod_metric_dict.get("node_model", "Unknown Model"),
                 )
-                rows.append(pod_obj.generate_pod_row())
+                rows.append(pod_obj.generate_pod_row(ignore_hours))
 
     csv_writer(rows, file_name)
