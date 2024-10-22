@@ -16,6 +16,7 @@ from unittest import TestCase, mock
 
 from openshift_metrics import utils, invoice
 import os
+from datetime import datetime, UTC
 
 class TestGetNamespaceAnnotations(TestCase):
 
@@ -288,6 +289,102 @@ class TestWriteMetricsByNamespace(TestCase):
             utils.write_metrics_by_namespace(test_metrics_dict, tmp.name, "2023-01")
             self.assertEqual(tmp.read(), expected_output)
 
+
+class TestWriteMetricsWithIgnoreHours(TestCase):
+    def setUp(self):
+        """Creates a test dictionary with condensed data that can be used to test WriteMetricsByPod and WriteMetricsByNamespace"""
+        start_dt = int(datetime.fromisoformat("2024-04-10T11:00:00Z").timestamp())
+        self.ignore_times = [
+            (
+                datetime(2024, 4, 9, 11, 0, 0, tzinfo=UTC),
+                datetime(2024, 4, 10, 15, 0, 0, tzinfo=UTC),
+            ),
+            (
+                datetime(2024, 4, 10, 22, 0, 0, tzinfo=UTC),
+                datetime(2024, 4, 11, 5, 0, 0, tzinfo=UTC)
+            ),
+        ]
+        HOUR = 60 * 60
+        self.test_metrics_dict = {
+            "namespace1": {
+                "pod1": {  # runs from 2024-04-10T11:00:00Z to 2024-04-10T21:00:00Z - 2 SU * 6 billable hours
+                    "metrics": {
+                        start_dt: {
+                            "cpu_request": 2,
+                            "memory_request": 4 * 2**30,
+                            "duration": 10 * HOUR,
+                        },
+                    }
+                },
+            },
+            "namespace2": {
+                "pod2": {
+                    "metrics": {
+                        start_dt: {  # runs from 2024-04-10T11:00:00Z to 2024-04-11T11:00:00Z - 2 SU * 13 billable hours
+                            "cpu_request": 2,
+                            "memory_request": 4 * 2**30,
+                            "duration": 24 * HOUR,
+                        },
+                        start_dt + 24 * HOUR: {  # runs from 2024-04-11T11:00:00Z to 2024-04-13T11:00:00Z - 3 SU * 48 billable hours
+                            "cpu_request": 3,
+                            "memory_request": 4 * 2**30,
+                            "duration": 48 * HOUR,
+                        },
+                    }
+                },
+                "pod3": {  # runs from 2024-04-10T11:00:00Z to 2024-04-12T11:00:00Z - 1 SU * 37 billable hours
+                    "gpu_type": invoice.GPU_A100_SXM4,
+                    "metrics": {
+                        start_dt: {
+                            "cpu_request": 24,
+                            "memory_request": 8 * 2**30,
+                            "gpu_request": 1,
+                            "gpu_type": invoice.GPU_A100_SXM4,
+                            "gpu_resource": invoice.WHOLE_GPU,
+                            "duration": 48 * HOUR,
+                        },
+                    },
+                },
+            },
+        }
+
+    @mock.patch("openshift_metrics.utils.get_namespace_attributes")
+    def test_write_metrics_by_namespace_with_ignore_hours(self, mock_gna):
+        mock_gna.return_value = {
+            "namespace1": {
+                "cf_pi": "PI1",
+                "cf_project_id": "123",
+                "institution_code": "cf-code-1",
+            },
+            "namespace2": {
+                "cf_pi": "PI2",
+                "cf_project_id": "456",
+                "institution_code": "cf-code-2",
+            },
+        }
+        expected_output = (
+            "Invoice Month,Project - Allocation,Project - Allocation ID,Manager (PI),Invoice Email,Invoice Address,Institution,Institution - Specific Code,SU Hours (GBhr or SUhr),SU Type,Rate,Cost\n"
+            "2023-01,namespace1,namespace1,PI1,,,,cf-code-1,12,OpenShift CPU,0.013,0.16\n"
+            "2023-01,namespace2,namespace2,PI2,,,,cf-code-2,170,OpenShift CPU,0.013,2.21\n"
+            "2023-01,namespace2,namespace2,PI2,,,,cf-code-2,37,OpenShift GPUA100SXM4,2.078,76.89\n"
+        )
+
+        with tempfile.NamedTemporaryFile(mode="w+") as tmp:
+            utils.write_metrics_by_namespace(
+                self.test_metrics_dict, tmp.name, "2023-01", self.ignore_times
+            )
+            self.assertEqual(tmp.read(), expected_output)
+
+    def test_write_metrics_by_pod_with_ignore_hours(self):
+        expected_output = ("Namespace,Pod Start Time,Pod End Time,Duration (Hours),Pod Name,CPU Request,GPU Request,GPU Type,GPU Resource,Node,Node Model,Memory Request (GiB),Determining Resource,SU Type,SU Count\n"
+                           "namespace1,2024-04-10T11:00:00,2024-04-10T21:00:00,6.0000,pod1,2,0,,,Unknown Node,Unknown Model,4.0000,CPU,OpenShift CPU,2\n"
+                           "namespace2,2024-04-10T11:00:00,2024-04-11T11:00:00,13.0000,pod2,2,0,,,Unknown Node,Unknown Model,4.0000,CPU,OpenShift CPU,2\n"
+                           "namespace2,2024-04-11T11:00:00,2024-04-13T11:00:00,48.0000,pod2,3,0,,,Unknown Node,Unknown Model,4.0000,CPU,OpenShift CPU,3\n"
+                           "namespace2,2024-04-10T11:00:00,2024-04-12T11:00:00,37.0000,pod3,24,1,NVIDIA-A100-SXM4-40GB,nvidia.com/gpu,Unknown Node,Unknown Model,8.0000,GPU,OpenShift GPUA100SXM4,1\n")
+
+        with tempfile.NamedTemporaryFile(mode="w+") as tmp:
+            utils.write_metrics_by_pod(self.test_metrics_dict, tmp.name, self.ignore_times)
+            self.assertEqual(tmp.read(), expected_output)
 
 class TestGetServiceUnit(TestCase):
 
