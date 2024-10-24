@@ -3,7 +3,7 @@ Merges metrics from files and produces reports by pod and by namespace
 """
 
 import argparse
-from datetime import datetime
+from datetime import datetime, UTC
 import json
 from typing import Tuple
 
@@ -20,9 +20,10 @@ def compare_dates(date_str1, date_str2):
 def parse_timestamp_range(timestamp_range: str) -> Tuple[datetime, datetime]:
     try:
         start_str, end_str = timestamp_range.split(",")
-        start_dt = datetime.fromisoformat(start_str)
-        end_dt = datetime.fromisoformat(end_str)
-        if start_dt < end_dt:
+        start_dt = datetime.fromisoformat(start_str).replace(tzinfo=UTC)
+        end_dt = datetime.fromisoformat(end_str).replace(tzinfo=UTC)
+
+        if start_dt > end_dt:
             raise argparse.ArgumentTypeError("Ignore start time is after ignore end time")
         return start_dt, end_dt
     except ValueError:
@@ -43,7 +44,7 @@ def main():
         "--ignore-hours",
         type=parse_timestamp_range,
         nargs="*",
-        help="List of timestamp ranges to ignore in the format 'YYYY-MM-DDTHH:MM:SS,YYYY-MM-DDTHH:MM:SS'"
+        help="List of timestamp ranges in UTC to ignore in the format 'YYYY-MM-DDTHH:MM:SS,YYYY-MM-DDTHH:MM:SS'"
     )
 
     args = parser.parse_args()
