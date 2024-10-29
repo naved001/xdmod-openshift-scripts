@@ -55,6 +55,11 @@ def main():
         action="store_true"
     )
     parser.add_argument("--output-file")
+    parser.add_argument(
+        "--output-dir",
+        default = ".",
+        help = "Directory where the metrics file is stored (defaults to current directory)"
+    )
 
     args = parser.parse_args()
     if not args.openshift_url:
@@ -103,7 +108,8 @@ def main():
         pass
 
     month_year = datetime.strptime(report_start_date, "%Y-%m-%d").strftime("%Y-%m")
-    directory_name = f"data_{month_year}"
+    directory_name = args.output_dir
+    s3_location = f"data_{month_year}/{output_file}"
 
     if not os.path.exists(directory_name):
         os.makedirs(directory_name)
@@ -114,7 +120,7 @@ def main():
         json.dump(metrics_dict, file)
 
     if args.upload_to_s3:
-        utils.upload_to_s3(output_file, "openshift-metrics", output_file)
+        utils.upload_to_s3(output_file, "openshift-metrics", s3_location)
 
 
 if __name__ == "__main__":

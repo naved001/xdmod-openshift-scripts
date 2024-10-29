@@ -17,10 +17,13 @@ import os
 import csv
 import requests
 import boto3
+import logging
 
 from openshift_metrics import invoice
 from decimal import Decimal
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class EmptyResultError(Exception):
     """Raise when no results are retrieved for a query"""
@@ -69,7 +72,7 @@ def upload_to_s3(file, bucket, location):
         aws_access_key_id=s3_key_id,
         aws_secret_access_key=s3_secret,
     )
-
+    logger.info("Uploading file '%s' to 's3://%s/%s'", file, bucket, location)
     response = s3.upload_file(file, Bucket=bucket, Key=location)
 
 
