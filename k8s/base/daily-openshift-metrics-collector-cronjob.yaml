@@ -29,11 +29,5 @@ spec:
                 secretKeyRef:
                   name: openshift-metrics-b2-bucket
                   key: secret-access-key
-            volumeMounts:
-            - name: data-volume
-              mountPath: /data
-            command: ["/bin/sh", "-c", "cd /data && python /app/openshift_metrics/openshift_prometheus_metrics.py --upload-to-s3"]
-          volumes:
-          - name: data-volume
-            emptyDir: {}
+            command: ["./collect_metrics.sh"]
           restartPolicy: OnFailure

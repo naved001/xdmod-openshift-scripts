@@ -2,3 +2,4 @@ resources:
   - daily-openshift-metrics-collector-cronjob.yaml
   - produce-report-cronjob.yaml
   - metrics-downloader-configmap.yaml
+  - gpu-node-map-configmap.yaml
