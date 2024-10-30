@@ -103,18 +103,17 @@ def main():
         pass
 
     month_year = datetime.strptime(report_start_date, "%Y-%m-%d").strftime("%Y-%m")
-    directory_name = f"data_{month_year}"
 
-    if not os.path.exists(directory_name):
-        os.makedirs(directory_name)
-
-    output_file = os.path.join(directory_name, output_file)
+    if report_start_date == report_end_date:
+        s3_location = f"data_{month_year}/metrics-{report_start_date}.json"
+    else:
+        s3_location = f"data_{month_year}/metrics-{report_start_date}-to-{report_end_date}.json"
 
     with open(output_file, "w") as file:
         json.dump(metrics_dict, file)
 
     if args.upload_to_s3:
-        utils.upload_to_s3(output_file, "openshift-metrics", output_file)
+        utils.upload_to_s3(output_file, "openshift-metrics", s3_location)
 
 
 if __name__ == "__main__":
