@@ -5,5 +5,7 @@ COPY requirements.txt ./
 RUN pip install -r requirements.txt
 
 COPY openshift_metrics/ /app/openshift_metrics
+COPY bin/collect_metrics.sh /app/collect_metrics.sh
+COPY bin/produce_report.sh /app/produce_report.sh
 
-CMD ["python", "openshift_metrics/openshift_prometheus_metrics.py", "--upload-to-s3"]
+CMD ["./collect_metrics.sh"]

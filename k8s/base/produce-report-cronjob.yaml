@@ -35,7 +35,10 @@ spec:
             volumeMounts:
             - name: data-volume
               mountPath: /data
-            command: ["/bin/sh", "-c", "cd /data && python /app/openshift_metrics/merge.py /data/*.json --upload-to-s3"]
+            - name: gpu-node-map
+              mountPath: /app/gpu_node_map.json
+              subPath: gpu_node_map.json
+            command: ["./produce_report.sh"]
           initContainers:
             - name: download-metrics
               image: amazon/aws-cli
@@ -63,4 +66,7 @@ spec:
             configMap:
               name: metrics-downloader
               defaultMode: 0555
+          - name: gpu-node-map
+            configMap:
+              name: gpu-node-map
           restartPolicy: OnFailure
