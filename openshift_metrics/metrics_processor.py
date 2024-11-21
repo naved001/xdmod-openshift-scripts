@@ -171,3 +171,25 @@ class MetricsProcessor:
         is more than the frequency of our metric collection
         """
         return (current_time - previous_time) > interval
+
+    @staticmethod
+    def insert_node_labels(node_labels: list, resource_request_metrics: list) -> list:
+        """Inserts node labels into resource_request_metrics"""
+        node_label_dict = {}
+        for node_label in node_labels:
+            node = node_label["metric"]["node"]
+            gpu = node_label["metric"].get("label_nvidia_com_gpu_product")
+            machine = node_label["metric"].get("label_nvidia_com_gpu_machine")
+            node_label_dict[node] = {"gpu": gpu, "machine": machine}
+        for pod in resource_request_metrics:
+            node = pod["metric"]["node"]
+            if node not in node_label_dict:
+                logger.warning("Could not find labels for node: %s", node)
+                continue
+            pod["metric"]["label_nvidia_com_gpu_product"] = node_label_dict[node].get(
+                "gpu"
+            )
+            pod["metric"]["label_nvidia_com_gpu_machine"] = node_label_dict[node].get(
+                "machine"
+            )
+        return resource_request_metrics

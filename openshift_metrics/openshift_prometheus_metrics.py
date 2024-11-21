@@ -21,15 +21,12 @@ import json
 
 from openshift_metrics import utils
 from openshift_metrics.prometheus_client import PrometheusClient
-
+from openshift_metrics.metrics_processor import MetricsProcessor
 
 CPU_REQUEST = 'kube_pod_resource_request{unit="cores"} unless on(pod, namespace) kube_pod_status_unschedulable'
 MEMORY_REQUEST = 'kube_pod_resource_request{unit="bytes"} unless on(pod, namespace) kube_pod_status_unschedulable'
-
-# For GPU requests, we don't need to exclude unscheduled pods because the join on node will eliminate those as unscheduled
-# pods don't have a node value
-GPU_REQUEST = 'kube_pod_resource_request{resource=~"nvidia.com.*"} * on(node) group_left(label_nvidia_com_gpu_product, label_nvidia_com_gpu_machine) kube_node_labels'
-
+GPU_REQUEST = 'kube_pod_resource_request{resource=~"nvidia.com.*"} unless on(pod, namespace) kube_pod_status_unschedulable'
+KUBE_NODE_LABELS = 'kube_node_labels{label_nvidia_com_gpu_product!=""}'
 
 def main():
     """This method kick starts the process of collecting and saving the metrics"""
@@ -98,7 +95,8 @@ def main():
         gpu_request_metrics = prom_client.query_metric(
             GPU_REQUEST, report_start_date, report_end_date
         )
-        metrics_dict["gpu_metrics"] = gpu_request_metrics
+        node_labels = prom_client.query_metric(KUBE_NODE_LABELS, report_start_date, report_end_date)
+        metrics_dict["gpu_metrics"] = MetricsProcessor.insert_node_labels(node_labels, gpu_request_metrics)
     except utils.EmptyResultError:
         pass
 
