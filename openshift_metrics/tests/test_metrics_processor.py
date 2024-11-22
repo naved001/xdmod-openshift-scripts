@@ -674,3 +674,85 @@ class TestExtractGPUInfo(TestCase):
             gpu_info = processor._extract_gpu_info("gpu_request", metric_with_label)
 
             assert gpu_info.gpu_type == metrics_processor.GPU_UNKNOWN_TYPE
+
+
+class TestInsertNodeLabels(TestCase):
+    def test_insert_node_labels(self):
+        resource_request_metrics = [
+            {
+                "metric": {
+                    "pod": "TestPodA",
+                    "node": "wrk-1",
+                    "namespace": "namespace1",
+                },
+                "values": [[1730939400, "4"], [1730940300, "4"], [1730941200, "4"]],
+            },
+            {
+                "metric": {
+                    "pod": "TestPodB",
+                    "node": "wrk-2",
+                    "namespace": "namespace2",
+                },
+                "values": [[1730939400, "4"], [1730940300, "4"], [1730941200, "4"]],
+            },
+            {
+                "metric": {
+                    "pod": "TestPodC",
+                    "node": "wrk-3",  # let's assume this node doesn't have any associated labels
+                    "namespace": "namespace2",
+                },
+                "values": [[1730939400, "4"], [1730940300, "4"], [1730941200, "4"]],
+            },
+        ]
+        kube_node_labels = [
+            {
+                "metric": {
+                    "node": "wrk-1",
+                    "label_nvidia_com_gpu_machine": "ThinkSystem-SD650-N-V2",
+                    "label_nvidia_com_gpu_product": "NVIDIA-A100-SXM4-40GB",
+                },
+                "values": [[1730939400, "1"], [1730940300, "1"]],
+            },
+            {
+                "metric": {
+                    "node": "wrk-2",
+                    "label_nvidia_com_gpu_product": "Tesla-V100-PCIE-32GB",
+                    "label_nvidia_com_gpu_machine": "PowerEdge-R740xd",
+                },
+                "values": [[1730939400, "1"], [1730940300, "1"]],
+            },
+        ]
+        metrics_with_labels = metrics_processor.MetricsProcessor.insert_node_labels(
+            kube_node_labels, resource_request_metrics
+        )
+        expected_metrics = [
+            {
+                "metric": {
+                    "pod": "TestPodA",
+                    "node": "wrk-1",
+                    "namespace": "namespace1",
+                    "label_nvidia_com_gpu_machine": "ThinkSystem-SD650-N-V2",
+                    "label_nvidia_com_gpu_product": "NVIDIA-A100-SXM4-40GB",
+                },
+                "values": [[1730939400, "4"], [1730940300, "4"], [1730941200, "4"]],
+            },
+            {
+                "metric": {
+                    "pod": "TestPodB",
+                    "node": "wrk-2",
+                    "namespace": "namespace2",
+                    "label_nvidia_com_gpu_product": "Tesla-V100-PCIE-32GB",
+                    "label_nvidia_com_gpu_machine": "PowerEdge-R740xd",
+                },
+                "values": [[1730939400, "4"], [1730940300, "4"], [1730941200, "4"]],
+            },
+            {
+                "metric": {
+                    "pod": "TestPodC",
+                    "node": "wrk-3",
+                    "namespace": "namespace2",
+                },
+                "values": [[1730939400, "4"], [1730940300, "4"], [1730941200, "4"]],
+            },
+        ]
+        self.assertEqual(expected_metrics, metrics_with_labels)
