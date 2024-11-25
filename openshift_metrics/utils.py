@@ -110,7 +110,7 @@ def csv_writer(rows, file_name):
         csvwriter.writerows(rows)
 
 
-def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month, ignore_hours=None):
+def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month, rates, ignore_hours=None):
     """
     Process metrics dictionary to aggregate usage by namespace and then write that to a file
     """
@@ -133,14 +133,6 @@ def write_metrics_by_namespace(condensed_metrics_dict, file_name, report_month, 
     ]
 
     rows.append(headers)
-
-    # TODO: the caller will pass in the rates as an argument
-    rates = invoice.Rates(
-        cpu = Decimal("0.013"),
-        gpu_a100 = Decimal("1.803"),
-        gpu_a100sxm4 = Decimal("2.078"),
-        gpu_v100 = Decimal("1.214")
-    )
 
     for namespace, pods in condensed_metrics_dict.items():
         namespace_annotation_dict = namespace_annotations.get(namespace, {})
