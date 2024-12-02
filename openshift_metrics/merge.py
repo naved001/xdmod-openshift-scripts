@@ -7,7 +7,7 @@ from datetime import datetime, UTC
 import json
 from typing import Tuple
 from decimal import Decimal
-from nerc_rates import load_from_url
+import nerc_rates
 
 from openshift_metrics import utils, invoice
 from openshift_metrics.metrics_processor import MetricsProcessor
@@ -103,12 +103,12 @@ def main():
     report_month = datetime.strftime(report_start_date, "%Y-%m")
 
     if args.use_nerc_rates:
-        nerc_rates = load_from_url()
+        nerc_data = nerc_rates.load_from_url()
         rates = invoice.Rates(
-            cpu=Decimal(nerc_rates.get_value_at("CPU SU Rate", report_month)),
-            gpu_a100=Decimal(nerc_rates.get_value_at("GPUA100 SU Rate", report_month)),
-            gpu_a100sxm4=Decimal(nerc_rates.get_value_at("GPUA100SXM4 SU Rate", report_month)),
-            gpu_v100=Decimal(nerc_rates.get_value_at("GPUV100 SU Rate", report_month)),
+            cpu=Decimal(nerc_data.get_value_at("CPU SU Rate", report_month)),
+            gpu_a100=Decimal(nerc_data.get_value_at("GPUA100 SU Rate", report_month)),
+            gpu_a100sxm4=Decimal(nerc_data.get_value_at("GPUA100SXM4 SU Rate", report_month)),
+            gpu_v100=Decimal(nerc_data.get_value_at("GPUV100 SU Rate", report_month)),
         )
     else:
         rates = invoice.Rates(
