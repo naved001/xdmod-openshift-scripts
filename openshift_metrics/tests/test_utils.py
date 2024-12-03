@@ -13,10 +13,18 @@
 from requests.exceptions import ConnectionError
 import tempfile
 from unittest import TestCase, mock
+from decimal import Decimal
 
 from openshift_metrics import utils, invoice
 import os
 from datetime import datetime, UTC
+
+RATES = invoice.Rates(
+    cpu = Decimal("0.013"),
+    gpu_a100sxm4 = Decimal("2.078"),
+    gpu_a100 = Decimal("1.803"),
+    gpu_v100 = Decimal("1.214")
+    )
 
 class TestGetNamespaceAnnotations(TestCase):
 
@@ -241,7 +249,12 @@ class TestWriteMetricsByNamespace(TestCase):
                             "2023-01,namespace2,namespace2,PI2,,,,,48,OpenShift GPUA100SXM4,2.078,99.74\n")
 
         with tempfile.NamedTemporaryFile(mode="w+") as tmp:
-            utils.write_metrics_by_namespace(test_metrics_dict, tmp.name, "2023-01")
+            utils.write_metrics_by_namespace(
+                condensed_metrics_dict=test_metrics_dict,
+                file_name=tmp.name,
+                report_month="2023-01",
+                rates=RATES
+                )
             self.assertEqual(tmp.read(), expected_output)
 
 
@@ -286,7 +299,12 @@ class TestWriteMetricsByNamespace(TestCase):
                             "2023-01,namespace1,namespace1,PI1,,,,76,35,OpenShift CPU,0.013,0.46\n")
 
         with tempfile.NamedTemporaryFile(mode="w+") as tmp:
-            utils.write_metrics_by_namespace(test_metrics_dict, tmp.name, "2023-01")
+            utils.write_metrics_by_namespace(
+                condensed_metrics_dict=test_metrics_dict,
+                file_name=tmp.name,
+                report_month="2023-01",
+                rates=RATES
+                )
             self.assertEqual(tmp.read(), expected_output)
 
 
@@ -294,6 +312,9 @@ class TestWriteMetricsWithIgnoreHours(TestCase):
     def setUp(self):
         """Creates a test dictionary with condensed data that can be used to test WriteMetricsByPod and WriteMetricsByNamespace"""
         start_dt = int(datetime.fromisoformat("2024-04-10T11:00:00Z").timestamp())
+
+
+
         self.ignore_times = [
             (
                 datetime(2024, 4, 9, 11, 0, 0, tzinfo=UTC),
@@ -371,7 +392,11 @@ class TestWriteMetricsWithIgnoreHours(TestCase):
 
         with tempfile.NamedTemporaryFile(mode="w+") as tmp:
             utils.write_metrics_by_namespace(
-                self.test_metrics_dict, tmp.name, "2023-01", self.ignore_times
+                condensed_metrics_dict=self.test_metrics_dict,
+                file_name=tmp.name,
+                report_month="2023-01",
+                rates=RATES,
+                ignore_hours=self.ignore_times
             )
             self.assertEqual(tmp.read(), expected_output)
 

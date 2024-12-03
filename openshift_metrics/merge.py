@@ -6,8 +6,10 @@ import argparse
 from datetime import datetime, UTC
 import json
 from typing import Tuple
+from decimal import Decimal
+import nerc_rates
 
-from openshift_metrics import utils
+from openshift_metrics import utils, invoice
 from openshift_metrics.metrics_processor import MetricsProcessor
 
 def compare_dates(date_str1, date_str2):
@@ -53,6 +55,15 @@ def main():
         nargs="*",
         help="List of timestamp ranges in UTC to ignore in the format 'YYYY-MM-DDTHH:MM:SS,YYYY-MM-DDTHH:MM:SS'"
     )
+    parser.add_argument(
+        "--use-nerc-rates",
+        action="store_true",
+        help="Use rates from the nerc-rates repo",
+    )
+    parser.add_argument("--rate-cpu-su", type=Decimal)
+    parser.add_argument("--rate-gpu-v100-su", type=Decimal)
+    parser.add_argument("--rate-gpu-a100sxm4-su", type=Decimal)
+    parser.add_argument("--rate-gpu-a100-su", type=Decimal)
 
     args = parser.parse_args()
     files = args.files
@@ -91,6 +102,22 @@ def main():
 
     report_month = datetime.strftime(report_start_date, "%Y-%m")
 
+    if args.use_nerc_rates:
+        nerc_data = nerc_rates.load_from_url()
+        rates = invoice.Rates(
+            cpu=Decimal(nerc_data.get_value_at("CPU SU Rate", report_month)),
+            gpu_a100=Decimal(nerc_data.get_value_at("GPUA100 SU Rate", report_month)),
+            gpu_a100sxm4=Decimal(nerc_data.get_value_at("GPUA100SXM4 SU Rate", report_month)),
+            gpu_v100=Decimal(nerc_data.get_value_at("GPUV100 SU Rate", report_month)),
+        )
+    else:
+        rates = invoice.Rates(
+            cpu=Decimal(args.rate_cpu_su),
+            gpu_a100=Decimal(args.rate_gpu_a100_su),
+            gpu_a100sxm4=Decimal(args.rate_gpu_a100sxm4_su),
+            gpu_v100=Decimal(args.rate_gpu_v100_su)
+        )
+
     if args.invoice_file:
         invoice_file = args.invoice_file
     else:
@@ -109,10 +136,11 @@ def main():
         ["cpu_request", "memory_request", "gpu_request", "gpu_type"]
     )
     utils.write_metrics_by_namespace(
-        condensed_metrics_dict,
-        invoice_file,
-        report_month,
-        ignore_hours,
+        condensed_metrics_dict=condensed_metrics_dict,
+        file_name=invoice_file,
+        report_month=report_month,
+        rates=rates,
+        ignore_hours=ignore_hours,
     )
     utils.write_metrics_by_pod(condensed_metrics_dict, pod_report_file, ignore_hours)
 
