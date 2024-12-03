@@ -2,6 +2,7 @@
 Merges metrics from files and produces reports by pod and by namespace
 """
 
+import os
 import argparse
 from datetime import datetime, UTC
 import json
@@ -145,23 +146,24 @@ def main():
     utils.write_metrics_by_pod(condensed_metrics_dict, pod_report_file, ignore_hours)
 
     if args.upload_to_s3:
+        bucket_name = os.environ.get("S3_INVOICE_BUCKET", "nerc-invoicing")
         primary_location = (
             f"Invoices/{report_month}/"
             f"Service Invoices/NERC OpenShift {report_month}.csv"
         )
-        utils.upload_to_s3(invoice_file, "nerc-invoicing", primary_location)
+        utils.upload_to_s3(invoice_file, bucket_name, primary_location)
 
         timestamp = datetime.utcnow().strftime('%Y%m%dT%H%M%SZ')
         secondary_location = (
             f"Invoices/{report_month}/"
             f"Archive/NERC OpenShift {report_month} {timestamp}.csv"
         )
-        utils.upload_to_s3(invoice_file, "nerc-invoicing", secondary_location)
+        utils.upload_to_s3(invoice_file, bucket_name, secondary_location)
         pod_report_location = (
             f"Invoices/{report_month}/"
             f"Archive/Pod-NERC OpenShift {report_month} {timestamp}.csv"
         )
-        utils.upload_to_s3(pod_report_file, "nerc-invoicing", pod_report_location)
+        utils.upload_to_s3(pod_report_file, bucket_name, pod_report_location)
 
 if __name__ == "__main__":
     main()

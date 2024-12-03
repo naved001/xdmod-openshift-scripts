@@ -111,8 +111,8 @@ def main():
         json.dump(metrics_dict, file)
 
     if args.upload_to_s3:
-        utils.upload_to_s3(output_file, "openshift-metrics", s3_location)
-
+        bucket_name = os.environ.get("S3_METRICS_BUCKET", "openshift_metrics")
+        utils.upload_to_s3(output_file, bucket_name, s3_location)
 
 if __name__ == "__main__":
     main()
