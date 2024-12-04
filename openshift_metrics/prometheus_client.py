@@ -1,9 +1,13 @@
 import requests
 import time
+import logging
 
 from urllib3.util.retry import Retry
 from requests.adapters import HTTPAdapter
 from openshift_metrics.utils import EmptyResultError
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class PrometheusClient:
     def __init__(self, prometheus_url: str, token: str, step_min: int=15):
@@ -22,7 +26,7 @@ class PrometheusClient:
         session = requests.Session()
         session.mount("https://", HTTPAdapter(max_retries=retries))
 
-        print(f"Retrieving metric: {metric}")
+        logger.info(f"Retrieving metric: {metric}")
 
         for _ in range(3):
             response = session.get(url, headers=headers, verify=True)
@@ -33,7 +37,7 @@ class PrometheusClient:
                 data = response.json()["data"]["result"]
                 if data:
                     break
-                print("Empty result set")
+                logger.warning("Empty result set")
             time.sleep(3)
 
         if not data:

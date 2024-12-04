@@ -18,10 +18,14 @@ from datetime import datetime, timedelta
 import os
 import sys
 import json
+import logging
 
 from openshift_metrics import utils
 from openshift_metrics.prometheus_client import PrometheusClient
 from openshift_metrics.metrics_processor import MetricsProcessor
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 CPU_REQUEST = 'kube_pod_resource_request{unit="cores"} unless on(pod, namespace) kube_pod_status_unschedulable'
 MEMORY_REQUEST = 'kube_pod_resource_request{unit="bytes"} unless on(pod, namespace) kube_pod_status_unschedulable'
@@ -71,8 +75,7 @@ def main():
     else:
         output_file = f"metrics-{report_start_date}-to-{report_end_date}.json"
 
-    print(f"Generating report starting {report_start_date} and ending {report_end_date} in {output_file}")
-
+    logger.info(f"Generating report starting {report_start_date} and ending {report_end_date} in {output_file}")
 
     token = os.environ.get("OPENSHIFT_TOKEN")
     prom_client = PrometheusClient(openshift_url, token)
@@ -98,6 +101,7 @@ def main():
         node_labels = prom_client.query_metric(KUBE_NODE_LABELS, report_start_date, report_end_date)
         metrics_dict["gpu_metrics"] = MetricsProcessor.insert_node_labels(node_labels, gpu_request_metrics)
     except utils.EmptyResultError:
+        logger.info(f"No GPU metrics found for the period {report_start_date} to {report_end_date}")
         pass
 
     month_year = datetime.strptime(report_start_date, "%Y-%m-%d").strftime("%Y-%m")
@@ -108,6 +112,7 @@ def main():
         s3_location = f"data_{month_year}/metrics-{report_start_date}-to-{report_end_date}.json"
 
     with open(output_file, "w") as file:
+        logger.info(f"Writing metrics to {output_file}")
         json.dump(metrics_dict, file)
 
     if args.upload_to_s3:

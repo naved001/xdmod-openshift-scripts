@@ -2,6 +2,7 @@
 Merges metrics from files and produces reports by pod and by namespace
 """
 
+import logging
 import os
 import argparse
 from datetime import datetime, UTC
@@ -12,6 +13,9 @@ import nerc_rates
 
 from openshift_metrics import utils, invoice
 from openshift_metrics.metrics_processor import MetricsProcessor
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 def compare_dates(date_str1, date_str2):
     """Returns true is date1 is earlier than date2"""
@@ -96,14 +100,15 @@ def main():
             elif compare_dates(report_end_date, metrics_from_file["end_date"]):
                 report_end_date = metrics_from_file["end_date"]
 
-    print(report_start_date)
-    print(report_end_date)
+    logger.info(f"Generating report from {report_start_date} to {report_end_date}")
+
     report_start_date = datetime.strptime(report_start_date, "%Y-%m-%d")
     report_end_date = datetime.strptime(report_end_date, "%Y-%m-%d")
 
     report_month = datetime.strftime(report_start_date, "%Y-%m")
 
     if args.use_nerc_rates:
+        logger.info("Using nerc rates.")
         nerc_data = nerc_rates.load_from_url()
         rates = invoice.Rates(
             cpu=Decimal(nerc_data.get_value_at("CPU SU Rate", report_month)),
@@ -130,7 +135,7 @@ def main():
         pod_report_file = f"Pod NERC OpenShift {report_month}.csv"
 
     if report_start_date.month != report_end_date.month:
-        print("Warning: The report spans multiple months")
+        logger.warning("The report spans multiple months")
         report_month += " to " + datetime.strftime(report_end_date, "%Y-%m")
 
     condensed_metrics_dict = processor.condense_metrics(
