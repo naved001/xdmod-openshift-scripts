@@ -17,9 +17,13 @@ import os
 import csv
 import requests
 import boto3
+import logging
 
 from openshift_metrics import invoice
 from decimal import Decimal
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 class EmptyResultError(Exception):
@@ -69,7 +73,7 @@ def upload_to_s3(file, bucket, location):
         aws_access_key_id=s3_key_id,
         aws_secret_access_key=s3_secret,
     )
-
+    logger.info(f"Uploading {file} to s3://{bucket}/{location}")
     response = s3.upload_file(file, Bucket=bucket, Key=location)
 
 
@@ -104,7 +108,7 @@ def get_namespace_attributes():
 
 def csv_writer(rows, file_name):
     """Writes rows as csv to file_name"""
-    print(f"Writing csv to {file_name}")
+    logger.info(f"Writing report to {file_name}")
     with open(file_name, "w") as csvfile:
         csvwriter = csv.writer(csvfile)
         csvwriter.writerows(rows)
