@@ -23,7 +23,8 @@ RATES = invoice.Rates(
     cpu = Decimal("0.013"),
     gpu_a100sxm4 = Decimal("2.078"),
     gpu_a100 = Decimal("1.803"),
-    gpu_v100 = Decimal("1.214")
+    gpu_v100 = Decimal("1.214"),
+    gpu_h100 = Decimal("6.04"),
     )
 
 class TestGetNamespaceAnnotations(TestCase):

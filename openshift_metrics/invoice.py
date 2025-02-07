@@ -9,6 +9,7 @@ import datetime
 GPU_A100 = "NVIDIA-A100-40GB"
 GPU_A100_SXM4 = "NVIDIA-A100-SXM4-40GB"
 GPU_V100 = "Tesla-V100-PCIE-32GB"
+GPU_H100 = "???-H100-???-???" # TODO Confirm name of H100 in Openstack
 GPU_UNKNOWN_TYPE = "GPU_UNKNOWN_TYPE"
 
 # GPU Resource - MIG Geometries
@@ -16,6 +17,7 @@ GPU_UNKNOWN_TYPE = "GPU_UNKNOWN_TYPE"
 MIG_1G_5GB = "nvidia.com/mig-1g.5gb"
 MIG_2G_10GB = "nvidia.com/mig-2g.10gb"
 MIG_3G_20GB = "nvidia.com/mig-3g.20gb"
+# TODO Will we allow MIG on H100s?
 WHOLE_GPU = "nvidia.com/gpu"
 
 # SU Types
@@ -23,6 +25,7 @@ SU_CPU = "OpenShift CPU"
 SU_A100_GPU = "OpenShift GPUA100"
 SU_A100_SXM4_GPU = "OpenShift GPUA100SXM4"
 SU_V100_GPU = "OpenShift GPUV100"
+SU_H100_GPU = "OpenShift GPUH100" # TODO Confirm name of H100 SU Name
 SU_UNKNOWN_GPU = "OpenShift Unknown GPU"
 SU_UNKNOWN_MIG_GPU = "OpenShift Unknown MIG GPU"
 SU_UNKNOWN = "Openshift Unknown"
@@ -65,6 +68,7 @@ class Pod:
             GPU_A100: SU_A100_GPU,
             GPU_A100_SXM4: SU_A100_SXM4_GPU,
             GPU_V100: SU_V100_GPU,
+            GPU_H100: SU_H100_GPU,
         }
 
         A100_SXM4_MIG = {
@@ -79,6 +83,7 @@ class Pod:
             SU_A100_GPU: {"gpu": 1, "cpu": 24, "ram": 74},
             SU_A100_SXM4_GPU: {"gpu": 1, "cpu": 32, "ram": 245},
             SU_V100_GPU: {"gpu": 1, "cpu": 24, "ram": 192},
+            SU_H100_GPU: {"gpu": 1, "cpu": 64, "ram": 384},
             SU_UNKNOWN_GPU: {"gpu": 1, "cpu": 8, "ram": 64},
             SU_UNKNOWN_MIG_GPU: {"gpu": 1, "cpu": 8, "ram": 64},
             SU_UNKNOWN: {"gpu": -1, "cpu": 1, "ram": 1},
@@ -179,6 +184,7 @@ class Rates:
     gpu_a100: Decimal
     gpu_a100sxm4: Decimal
     gpu_v100: Decimal
+    gpu_h100: Decimal
 
 
 @dataclass
@@ -201,6 +207,7 @@ class ProjectInvoce:
             SU_A100_GPU: 0,
             SU_A100_SXM4_GPU: 0,
             SU_V100_GPU: 0,
+            SU_H100_GPU: 0,
             SU_UNKNOWN_GPU: 0,
             SU_UNKNOWN_MIG_GPU: 0,
             SU_UNKNOWN: 0,
