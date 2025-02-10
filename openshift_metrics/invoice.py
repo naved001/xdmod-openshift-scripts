@@ -77,7 +77,7 @@ class Pod:
         su_config = {
             SU_CPU: {"gpu": -1, "cpu": 1, "ram": 4},
             SU_A100_GPU: {"gpu": 1, "cpu": 24, "ram": 74},
-            SU_A100_SXM4_GPU: {"gpu": 1, "cpu": 32, "ram": 240},
+            SU_A100_SXM4_GPU: {"gpu": 1, "cpu": 31, "ram": 240},
             SU_V100_GPU: {"gpu": 1, "cpu": 48, "ram": 192},
             SU_UNKNOWN_GPU: {"gpu": 1, "cpu": 8, "ram": 64},
             SU_UNKNOWN_MIG_GPU: {"gpu": 1, "cpu": 8, "ram": 64},

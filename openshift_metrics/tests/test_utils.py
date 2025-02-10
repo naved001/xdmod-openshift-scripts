@@ -451,7 +451,7 @@ class TestGetServiceUnit(TestCase):
         self.assertEqual(determining_resource, "GPU")
 
     def test_known_gpu_A100_SXM4(self):
-        pod = self.make_pod(32, 240, 1, invoice.GPU_A100_SXM4, invoice.WHOLE_GPU)
+        pod = self.make_pod(31, 240, 1, invoice.GPU_A100_SXM4, invoice.WHOLE_GPU)
         su_type, su_count, determining_resource = pod.get_service_unit()
         self.assertEqual(su_type, invoice.SU_A100_SXM4_GPU)
         self.assertEqual(su_count, 1)
