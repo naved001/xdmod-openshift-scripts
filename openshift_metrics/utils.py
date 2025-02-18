@@ -227,3 +227,77 @@ def write_metrics_by_pod(condensed_metrics_dict, file_name, ignore_hours=None):
                 rows.append(pod_obj.generate_pod_row(ignore_hours))
 
     csv_writer(rows, file_name)
+
+def write_metrics_by_classes(condensed_metrics_dict, file_name, report_month, rates, namespaces_with_classes, ignore_hours=None):
+    """
+    Process metrics dictionary to aggregate usage by the class label.
+
+    If a pod has a class label, then the project name is composed of namespace:class_name
+    otherwise it's namespace:noclass.
+    """
+    invoices = {}
+    rows = []
+    headers = [
+        "Invoice Month",
+        "Project - Allocation",
+        "Project - Allocation ID",
+        "Manager (PI)",
+        "Invoice Email",
+        "Invoice Address",
+        "Institution",
+        "Institution - Specific Code",
+        "SU Hours (GBhr or SUhr)",
+        "SU Type",
+        "Rate",
+        "Cost",
+    ]
+
+    rows.append(headers)
+
+    for namespace, pods in condensed_metrics_dict.items():
+        if namespace not in namespaces_with_classes:
+            continue
+
+        for pod, pod_dict in pods.items():
+            class_name = pod_dict.get("label_nerc_mghpcc_org_class")
+            if class_name:
+                project_name = f"{namespace}:{class_name}"
+            else:
+                project_name = f"{namespace}:noclass"
+
+            if project_name not in invoices:
+                project_invoice = invoice.ProjectInvoce(
+                    invoice_month=report_month,
+                    project=project_name,
+                    project_id=project_name,
+                    pi="",
+                    invoice_email="",
+                    invoice_address="",
+                    intitution="",
+                    institution_specific_code="",
+                    rates=rates,
+                    ignore_hours=ignore_hours,
+                )
+                invoices[project_name] = project_invoice
+            project_invoice = invoices[project_name]
+
+            for epoch_time, pod_metric_dict in pod_dict["metrics"].items():
+                pod_obj = invoice.Pod(
+                    pod_name=pod,
+                    namespace=project_name,
+                    start_time=epoch_time,
+                    duration=pod_metric_dict["duration"],
+                    cpu_request=Decimal(pod_metric_dict.get("cpu_request", 0)),
+                    gpu_request=Decimal(pod_metric_dict.get("gpu_request", 0)),
+                    memory_request=Decimal(pod_metric_dict.get("memory_request", 0)) / 2**30,
+                    gpu_type=pod_metric_dict.get("gpu_type"),
+                    gpu_resource=pod_metric_dict.get("gpu_resource"),
+                    node_hostname=pod_metric_dict.get("node"),
+                    node_model=pod_metric_dict.get("node_model"),
+                )
+                project_invoice.add_pod(pod_obj)
+
+    for project_invoice in invoices.values():
+        rows.extend(project_invoice.generate_invoice_rows(report_month))
+
+    csv_writer(rows, f"By-class-{file_name}")

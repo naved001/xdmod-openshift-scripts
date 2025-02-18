@@ -141,11 +141,20 @@ def main():
     condensed_metrics_dict = processor.condense_metrics(
         ["cpu_request", "memory_request", "gpu_request", "gpu_type"]
     )
+
     utils.write_metrics_by_namespace(
         condensed_metrics_dict=condensed_metrics_dict,
         file_name=invoice_file,
         report_month=report_month,
         rates=rates,
+        ignore_hours=ignore_hours,
+    )
+    utils.write_metrics_by_classes(
+        condensed_metrics_dict=condensed_metrics_dict,
+        file_name=invoice_file,
+        report_month=report_month,
+        rates=rates,
+        namespaces_with_classes=["rhods-notebooks"],
         ignore_hours=ignore_hours,
     )
     utils.write_metrics_by_pod(condensed_metrics_dict, pod_report_file, ignore_hours)
