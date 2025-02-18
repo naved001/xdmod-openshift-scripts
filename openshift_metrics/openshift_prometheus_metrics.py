@@ -31,6 +31,7 @@ CPU_REQUEST = 'kube_pod_resource_request{unit="cores", node!=""} unless on(pod, 
 MEMORY_REQUEST = 'kube_pod_resource_request{unit="bytes", node!=""} unless on(pod, namespace) kube_pod_status_unschedulable'
 GPU_REQUEST = 'kube_pod_resource_request{resource=~"nvidia.com.*", node!=""} unless on(pod, namespace) kube_pod_status_unschedulable'
 KUBE_NODE_LABELS = 'kube_node_labels{label_nvidia_com_gpu_product!=""}'
+KUBE_POD_LABELS = 'kube_pod_labels{label_nerc_mghpcc_org_class!=""}'
 
 def main():
     """This method kick starts the process of collecting and saving the metrics"""
@@ -87,10 +88,17 @@ def main():
     cpu_request_metrics = prom_client.query_metric(
         CPU_REQUEST, report_start_date, report_end_date
     )
+
+    try:
+        pod_labels = prom_client.query_metric(KUBE_POD_LABELS, report_start_date, report_end_date)
+        metrics_dict["cpu_metrics"] = MetricsProcessor.insert_pod_labels(pod_labels, cpu_request_metrics)
+    except utils.EmptyResultError:
+        logger.info(f"No pod labels found for the period {report_start_date} to {report_end_date}")
+        metrics_dict["cpu_metrics"] = cpu_request_metrics
+
     memory_request_metrics = prom_client.query_metric(
         MEMORY_REQUEST, report_start_date, report_end_date
     )
-    metrics_dict["cpu_metrics"] = cpu_request_metrics
     metrics_dict["memory_metrics"] = memory_request_metrics
 
     # because if nobody requests a GPU then we will get an empty set
