@@ -300,4 +300,4 @@ def write_metrics_by_classes(condensed_metrics_dict, file_name, report_month, ra
     for project_invoice in invoices.values():
         rows.extend(project_invoice.generate_invoice_rows(report_month))
 
-    csv_writer(rows, f"By-class-{file_name}")
+    csv_writer(rows, file_name)

@@ -151,7 +151,7 @@ def main():
     )
     utils.write_metrics_by_classes(
         condensed_metrics_dict=condensed_metrics_dict,
-        file_name=invoice_file,
+        file_name=f"by-classes-{invoice_file}",
         report_month=report_month,
         rates=rates,
         namespaces_with_classes=["rhods-notebooks"],
