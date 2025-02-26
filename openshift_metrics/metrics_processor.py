@@ -205,7 +205,7 @@ class MetricsProcessor:
         for pod_label in pod_labels:
             pod_name = pod_label["metric"]["pod"]
             class_name = pod_label["metric"].get("label_nerc_mghpcc_org_class")
-            pod_label_dict[pod_name] = {"pod": pod_name, "class": class_name}
+            pod_label_dict[pod_name] = {"class": class_name}
 
         for pod in resource_request_metrics:
             pod_name = pod["metric"]["pod"]
