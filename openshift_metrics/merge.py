@@ -148,6 +148,14 @@ def main():
         rates=rates,
         ignore_hours=ignore_hours,
     )
+    utils.write_metrics_by_classes(
+        condensed_metrics_dict=condensed_metrics_dict,
+        file_name=f"by-classes-{invoice_file}",
+        report_month=report_month,
+        rates=rates,
+        namespaces_with_classes=["rhods-notebooks"],
+        ignore_hours=ignore_hours,
+    )
     utils.write_metrics_by_pod(condensed_metrics_dict, pod_report_file, ignore_hours)
 
     if args.upload_to_s3:

@@ -25,7 +25,6 @@ class MetricsProcessor:
 
     def merge_metrics(self, metric_name, metric_list):
         """Merge metrics (cpu, memory, gpu) by pod"""
-
         for metric in metric_list:
             pod = metric["metric"]["pod"]
             namespace = metric["metric"]["namespace"]
@@ -33,6 +32,11 @@ class MetricsProcessor:
 
             self.merged_data.setdefault(namespace, {})
             self.merged_data[namespace].setdefault(pod, {"metrics": {}})
+
+            if metric_name == "cpu_request":
+                class_name = metric["metric"].get("label_nerc_mghpcc_org_class")
+                if class_name is not None:
+                    self.merged_data[namespace][pod]["label_nerc_mghpcc_org_class"] = class_name
 
             gpu_type, gpu_resource, node_model = self._extract_gpu_info(
                 metric_name, metric
@@ -191,5 +195,23 @@ class MetricsProcessor:
             )
             pod["metric"]["label_nvidia_com_gpu_machine"] = node_label_dict[node].get(
                 "machine"
+            )
+        return resource_request_metrics
+
+    @staticmethod
+    def insert_pod_labels(pod_labels: list, resource_request_metrics: list) -> list:
+        """Inserts `label_nerc_mghpcc_org_class` label into resource_request_metrics"""
+        pod_label_dict = {}
+        for pod_label in pod_labels:
+            pod_name = pod_label["metric"]["pod"]
+            class_name = pod_label["metric"].get("label_nerc_mghpcc_org_class")
+            pod_label_dict[pod_name] = {"class": class_name}
+
+        for pod in resource_request_metrics:
+            pod_name = pod["metric"]["pod"]
+            if pod_name not in pod_label_dict:
+                continue
+            pod["metric"]["label_nerc_mghpcc_org_class"] = pod_label_dict[pod_name].get(
+                "class"
             )
         return resource_request_metrics

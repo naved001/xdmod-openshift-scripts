@@ -258,6 +258,109 @@ class TestWriteMetricsByNamespace(TestCase):
             self.assertEqual(tmp.read(), expected_output)
 
 
+class TestWriteMetricsByClasses(TestCase):
+
+    @mock.patch('openshift_metrics.utils.get_namespace_attributes')
+    def test_write_metrics_log(self, mock_gna):
+        mock_gna.return_value = {
+            'namespace1': {
+                'cf_pi': 'PI1',
+                'cf_project_id': '123',
+                'institution_code': '76'
+            },
+            'namespace2': {
+                'cf_pi': 'PI2',
+                'cf_project_id': '456',
+            }
+        }
+        test_metrics_dict = {
+            "namespace1": { # namespace is ignored entirely from the report
+                "pod1": {
+                    "metrics": {
+                        0: {
+                            "cpu_request": 2,
+                            "memory_request": 4 * 2**30,
+                            "duration": 43200
+                        },
+                    }
+                },
+            },
+            "namespace2": {
+                "pod2": { # pod which doesn't belong to a class
+                    "metrics": {
+                        0: {
+                            "cpu_request": 1,
+                            "memory_request": 8 * 2**30,
+                            "duration": 172800
+                        },
+                    }
+                },
+                "pod3": {
+                    "label_nerc_mghpcc_org_class": "math-201",
+                    "metrics": {
+                        0: {
+                            "cpu_request": 1,
+                            "memory_request": 8 * 2**30,
+                            "duration": 86400
+                        },
+                    }
+                },
+                "pod4": {
+                    "label_nerc_mghpcc_org_class": "math-201",
+                    "metrics": {
+                        0: {
+                            "cpu_request": 2,
+                            "memory_request": 8 * 2**30,
+                            "duration": 86400
+                        },
+                    }
+                },
+                "pod5": {
+                    "label_nerc_mghpcc_org_class": "math-201",
+                    "metrics": {
+                        0: {
+                            "cpu_request": 1,
+                            "memory_request": 8 * 2**30,
+                            "gpu_request": 1,
+                            "gpu_type": invoice.GPU_A100,
+                            "gpu_resource": invoice.WHOLE_GPU,
+                            "duration": 86400
+                        },
+                    }
+                },
+                "pod6": {
+                    "label_nerc_mghpcc_org_class": "cs-101",
+                    "gpu_type": invoice.GPU_A100_SXM4,
+                    "metrics": {
+                        0: {
+                            "cpu_request": 24,
+                            "memory_request": 8 * 2**30,
+                            "gpu_request": 1,
+                            "gpu_type": invoice.GPU_A100_SXM4,
+                            "gpu_resource": invoice.WHOLE_GPU,
+                            "duration": 172800
+                        },
+                    }
+            },
+            }
+        }
+
+        expected_output = ("Invoice Month,Project - Allocation,Project - Allocation ID,Manager (PI),Invoice Email,Invoice Address,Institution,Institution - Specific Code,SU Hours (GBhr or SUhr),SU Type,Rate,Cost\n"
+                            "2023-01,namespace2:noclass,namespace2:noclass,,,,,,96,OpenShift CPU,0.013,1.25\n"
+                            "2023-01,namespace2:math-201,namespace2:math-201,,,,,,96,OpenShift CPU,0.013,1.25\n"
+                            "2023-01,namespace2:math-201,namespace2:math-201,,,,,,24,OpenShift GPUA100,1.803,43.27\n"
+                            "2023-01,namespace2:cs-101,namespace2:cs-101,,,,,,48,OpenShift GPUA100SXM4,2.078,99.74\n")
+
+        with tempfile.NamedTemporaryFile(mode="w+") as tmp:
+            utils.write_metrics_by_classes(
+                condensed_metrics_dict=test_metrics_dict,
+                file_name=tmp.name,
+                report_month="2023-01",
+                rates=RATES,
+                namespaces_with_classes=["namespace2"]
+                )
+            self.assertEqual(tmp.read(), expected_output)
+
     @mock.patch('openshift_metrics.utils.get_namespace_attributes')
     def test_write_metrics_by_namespace_decimal(self, mock_gna):
         """This tests the inaccurate result we get when using floating
